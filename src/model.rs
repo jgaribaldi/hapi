@@ -119,12 +119,6 @@ mod tests {
     use crate::model::{Context, Route};
 
     #[test]
-    fn should_create_empty_context() {
-        let context = Context::build();
-        assert_eq!(context.has_routes(), false);
-    }
-
-    #[test]
     fn should_create_context_from_routes() {
         let routes_vec = vec!(sample_route_1(), sample_route_2());
         let routes = HashSet::from_iter(routes_vec);
