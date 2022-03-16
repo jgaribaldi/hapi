@@ -11,7 +11,10 @@ mod infrastructure;
 
 #[tokio::main]
 async fn main() {
-    println!("This is Hapi, the Happy API");
+    // TODO: remove unwrap()
+    simple_logger::init_with_env().unwrap();
+
+    log::info!("This is Hapi, the Happy API");
     let context = initialize_context();
 
     let model = Arc::new(context);
@@ -30,7 +33,7 @@ async fn main() {
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
     let server = Server::bind(&addr).serve(make_service);
     if let Err(e) = server.await {
-        eprintln!("server error: {}", e);
+        log::error!("server error: {}", e);
     }
 }
 
@@ -38,6 +41,6 @@ fn initialize_context() -> Context {
     let mut context = Context::build();
     let route = Route::build("Test", &["GET"], &["/test"], &["localhost:8001"]);
     context.register_route(&route);
-    println!("{:?}", context);
+    log::info!("{:?}", context);
     context
 }

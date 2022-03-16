@@ -21,7 +21,7 @@ impl Infrastructure {
     }
 
     pub async fn process_request(self, request: Request<Body>) -> Result<Response<Body>, Infallible> {
-        println!("{:?}", &request);
+        log::debug!("Received: {:?}", &request);
         let method = request.method().as_str();
         let path = request.uri().path();
 
@@ -34,16 +34,19 @@ impl Infrastructure {
                 let mut upstream_request = Request::from(request);
                 *upstream_request.uri_mut() = upstream_uri;
                 *upstream_request.headers_mut() = headers;
-                println!("{:?}", &upstream_request);
+                log::debug!("Generated: {:?}", &upstream_request);
 
                 let client = Client::new();
                 // TODO: remove unwrap()
                 client.request(upstream_request).await.unwrap()
             }
-            None => Response::builder()
-                .status(404)
-                .body(Body::empty())
-                .unwrap()
+            None => {
+                log::debug!("No routes found for {:?}", request);
+                Response::builder()
+                    .status(404)
+                    .body(Body::empty())
+                    .unwrap()
+            }
         };
 
         Ok(response)
