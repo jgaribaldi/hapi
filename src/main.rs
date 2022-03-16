@@ -31,7 +31,10 @@ async fn main() {
     });
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-    let server = Server::bind(&addr).serve(make_service);
+    let server = Server::bind(&addr)
+        .serve(make_service)
+        .with_graceful_shutdown(graceful_quit());
+
     if let Err(e) = server.await {
         log::error!("server error: {}", e);
     }
@@ -43,4 +46,11 @@ fn initialize_context() -> Context {
     context.register_route(&route);
     log::info!("{:?}", context);
     context
+}
+
+async fn graceful_quit() {
+    tokio::signal::ctrl_c()
+        .await
+        .expect("Could not install graceful quit signal handler");
+    log::info!("Shutting down Hapi. Bye :-)")
 }
