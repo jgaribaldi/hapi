@@ -1,9 +1,8 @@
-use std::convert::Infallible;
 use std::str::FromStr;
 use std::sync::Arc;
 use hyper::{Body, Client, HeaderMap, Request, Response, Uri};
 use hyper::header::HOST;
-use crate::Context;
+use crate::{Context, HapiError};
 
 type Model = Arc<Context>;
 
@@ -20,15 +19,14 @@ impl Infrastructure {
         }
     }
 
-    pub async fn process_request(self, request: Request<Body>) -> Result<Response<Body>, Infallible> {
+    pub async fn process_request(self, request: Request<Body>) -> Result<Response<Body>, HapiError> {
         log::debug!("Received: {:?}", &request);
         let method = request.method().as_str();
         let path = request.uri().path();
 
         let response = match self.model.get_upstream_for(method, path) {
             Some(upstream) => {
-                // TODO: remove unwrap()
-                let upstream_uri = Uri::from_str(absolute_url_for(upstream, path).as_str()).unwrap();
+                let upstream_uri = Uri::from_str(absolute_url_for(upstream, path).as_str())?;
                 let headers = headers_for(&request, upstream);
 
                 let mut upstream_request = Request::from(request);
@@ -37,8 +35,7 @@ impl Infrastructure {
                 log::debug!("Generated: {:?}", &upstream_request);
 
                 let client = Client::new();
-                // TODO: remove unwrap()
-                client.request(upstream_request).await.unwrap()
+                client.request(upstream_request).await?
             }
             None => {
                 log::debug!("No routes found for {:?}", request);

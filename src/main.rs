@@ -3,16 +3,17 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use hyper::Server;
 use hyper::service::{make_service_fn, service_fn};
+use crate::errors::HapiError;
 use crate::infrastructure::Infrastructure;
 use crate::model::{Context, Route};
 
 mod model;
 mod infrastructure;
+mod errors;
 
 #[tokio::main]
-async fn main() {
-    // TODO: remove unwrap()
-    simple_logger::init_with_env().unwrap();
+async fn main() -> Result<(), HapiError> {
+    simple_logger::init_with_env()?;
 
     log::info!("This is Hapi, the Happy API");
     let context = initialize_context();
@@ -38,6 +39,7 @@ async fn main() {
     if let Err(e) = server.await {
         log::error!("server error: {}", e);
     }
+    Ok(())
 }
 
 fn initialize_context() -> Context {
