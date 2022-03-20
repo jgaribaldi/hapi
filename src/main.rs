@@ -1,4 +1,3 @@
-use std::convert::Infallible;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use hyper::Server;
@@ -28,7 +27,7 @@ async fn main() -> Result<(), HapiError> {
             let infrastructure = infrastructure.clone();
             infrastructure.process_request(request)
         });
-        async move { Ok::<_, Infallible>(service) }
+        async move { Ok::<_, HapiError>(service) }
     });
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
