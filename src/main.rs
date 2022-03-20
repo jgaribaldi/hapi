@@ -4,11 +4,11 @@ use hyper::Server;
 use hyper::service::{make_service_fn, service_fn};
 use crate::errors::HapiError;
 use crate::infrastructure::Infrastructure;
-use crate::model::{Context, Route, AlwaysFirstUpstreamStrategy};
+use crate::model::model::{AlwaysFirstUpstreamStrategy, Context, Route};
 
-mod model;
 mod infrastructure;
 mod errors;
+mod model;
 
 #[tokio::main]
 async fn main() -> Result<(), HapiError> {

@@ -89,7 +89,7 @@ impl<T> Context<T>
     }
 
     fn get_best_matching_route(&self, method: &str, path: &str) -> Option<&Route> {
-        // TODO: model policy for determining the best matching route
+        // TODO: context policy for determining the best matching route
         let relevant_routes = self.get_relevant_routes(path);
 
         let mut result = None;
@@ -139,8 +139,7 @@ impl UpstreamStrategy for AlwaysFirstUpstreamStrategy {
 mod tests {
     use std::collections::HashSet;
     use std::iter::FromIterator;
-    use crate::model::{Context, Route};
-    use crate::AlwaysFirstUpstreamStrategy;
+    use crate::{AlwaysFirstUpstreamStrategy, Context, Route};
 
     #[test]
     fn should_create_context_from_routes() {
