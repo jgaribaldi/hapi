@@ -4,7 +4,8 @@ use hyper::Server;
 use hyper::service::{make_service_fn, service_fn};
 use crate::errors::HapiError;
 use crate::infrastructure::Infrastructure;
-use crate::model::model::{AlwaysFirstUpstreamStrategy, Context, Route};
+use crate::model::context::{Context, Route};
+use crate::model::upstream_strategy::AlwaysFirstUpstreamStrategy;
 
 mod infrastructure;
 mod errors;

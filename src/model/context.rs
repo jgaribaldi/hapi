@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
+use crate::model::upstream_strategy::UpstreamStrategy;
 
 #[derive(Clone, Eq, Hash, PartialEq, Debug)]
 pub struct Route {
@@ -41,7 +42,7 @@ pub struct Context<T>
     where T: UpstreamStrategy + Debug + Clone
 {
     routes: HashMap<String, Vec<Route>>,
-    upstream_strategy: T,
+    upstream_strategy: T, // for now we use the same upstream strategy for all routes
 }
 
 impl<T> Context<T>
@@ -113,33 +114,12 @@ impl<T> Context<T>
     }
 }
 
-pub trait UpstreamStrategy {
-    fn next_for(&self, route: &Route) -> Option<String>;
-}
-
-#[derive(Clone, Debug)]
-pub struct AlwaysFirstUpstreamStrategy {
-}
-
-impl AlwaysFirstUpstreamStrategy {
-    pub fn build() -> Self {
-        AlwaysFirstUpstreamStrategy {}
-    }
-}
-
-impl UpstreamStrategy for AlwaysFirstUpstreamStrategy {
-    fn next_for(&self, route: &Route) -> Option<String> {
-        route.upstreams.first()
-            .map(|upstream| String::from(upstream))
-    }
-}
-
-
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;
     use std::iter::FromIterator;
-    use crate::{AlwaysFirstUpstreamStrategy, Context, Route};
+    use crate::{Context, Route};
+    use crate::model::upstream_strategy::AlwaysFirstUpstreamStrategy;
 
     #[test]
     fn should_create_context_from_routes() {
