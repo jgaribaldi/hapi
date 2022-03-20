@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::fmt::Debug;
 
 #[derive(Clone, Eq, Hash, PartialEq, Debug)]
 pub struct Route {
@@ -36,18 +37,24 @@ fn deduplicate(list: &[&str]) -> Vec<String> {
 }
 
 #[derive(Debug)]
-pub struct Context {
-    routes: HashMap<String, Vec<Route>>
+pub struct Context<T>
+    where T: UpstreamStrategy + Debug + Clone
+{
+    routes: HashMap<String, Vec<Route>>,
+    upstream_strategy: T,
 }
 
-impl Context {
-    pub fn build() -> Self {
+impl<T> Context<T>
+    where T: UpstreamStrategy + Debug + Clone
+{
+    pub fn build(upstream_strategy: T) -> Self {
         Context {
-            routes: HashMap::new()
+            routes: HashMap::new(),
+            upstream_strategy
         }
     }
 
-    pub fn build_from_routes(routes: &HashSet<Route>) -> Self {
+    pub fn build_from_routes(routes: &HashSet<Route>, upstream_strategy: T) -> Self {
         let mut routes_map: HashMap<String, Vec<Route>> = HashMap::new();
 
         for route in routes {
@@ -60,7 +67,8 @@ impl Context {
         }
 
         Context {
-            routes: routes_map
+            routes: routes_map,
+            upstream_strategy,
         }
     }
 
@@ -73,12 +81,11 @@ impl Context {
     }
 
 
-    pub fn get_upstream_for(&self, method: &str, path: &str) -> Option<&str> {
+    pub fn get_upstream_for(&self, method: &str, path: &str) -> Option<String> {
         self.get_best_matching_route(method, path)
             .and_then(|route| {
-                Context::get_next_available_upstream(route)
+                self.upstream_strategy.next_for(route)
             })
-            .map(|upstream| upstream.as_str())
     }
 
     fn get_best_matching_route(&self, method: &str, path: &str) -> Option<&Route> {
@@ -104,10 +111,26 @@ impl Context {
             None => &[]
         }
     }
+}
 
-    fn get_next_available_upstream(route: &Route) -> Option<&String> {
-        // TODO: model policy for getting the next available upstream
+pub trait UpstreamStrategy {
+    fn next_for(&self, route: &Route) -> Option<String>;
+}
+
+#[derive(Clone, Debug)]
+pub struct AlwaysFirstUpstreamStrategy {
+}
+
+impl AlwaysFirstUpstreamStrategy {
+    pub fn build() -> Self {
+        AlwaysFirstUpstreamStrategy {}
+    }
+}
+
+impl UpstreamStrategy for AlwaysFirstUpstreamStrategy {
+    fn next_for(&self, route: &Route) -> Option<String> {
         route.upstreams.first()
+            .map(|upstream| String::from(upstream))
     }
 }
 
@@ -117,19 +140,22 @@ mod tests {
     use std::collections::HashSet;
     use std::iter::FromIterator;
     use crate::model::{Context, Route};
+    use crate::AlwaysFirstUpstreamStrategy;
 
     #[test]
     fn should_create_context_from_routes() {
         let routes_vec = vec!(sample_route_1(), sample_route_2());
         let routes = HashSet::from_iter(routes_vec);
 
-        let context = Context::build_from_routes(&routes);
+        let upstream_strategy = AlwaysFirstUpstreamStrategy::build();
+        let context = Context::build_from_routes(&routes, upstream_strategy);
         assert_eq!(context.routes.len(), 3);
     }
 
     #[test]
     fn should_register_route() {
-        let mut context = Context::build();
+        let upstream_strategy = AlwaysFirstUpstreamStrategy::build();
+        let mut context = Context::build(upstream_strategy);
         let route = sample_route_1();
 
         context.register_route(&route);
@@ -143,18 +169,20 @@ mod tests {
     fn should_find_upstream_for_get() {
         let routes_vec = vec!(sample_route_1(), sample_route_2());
         let routes = HashSet::from_iter(routes_vec);
-        let context = Context::build_from_routes(&routes);
+        let upstream_strategy = AlwaysFirstUpstreamStrategy::build();
+        let context = Context::build_from_routes(&routes, upstream_strategy);
 
         let upstream = context.get_upstream_for("GET", "uri1");
 
-        assert_eq!(Some("upstream1"), upstream)
+        assert_eq!(Some(String::from("upstream1")), upstream)
     }
 
     #[test]
     fn should_not_find_upstream_for_post() {
         let routes_vec = vec!(sample_route_1(), sample_route_2());
         let routes = HashSet::from_iter(routes_vec);
-        let context = Context::build_from_routes(&routes);
+        let upstream_strategy = AlwaysFirstUpstreamStrategy::build();
+        let context = Context::build_from_routes(&routes, upstream_strategy);
 
         let upstream = context.get_upstream_for("POST", "uri1");
 
@@ -165,7 +193,8 @@ mod tests {
     fn should_not_find_upstream_for_unknown_uri() {
         let routes_vec = vec!(sample_route_1(), sample_route_2());
         let routes = HashSet::from_iter(routes_vec);
-        let context = Context::build_from_routes(&routes);
+        let upstream_strategy = AlwaysFirstUpstreamStrategy::build();
+        let context = Context::build_from_routes(&routes, upstream_strategy);
 
         let upstream = context.get_upstream_for("GET", "uri4");
 
@@ -190,9 +219,10 @@ mod tests {
         )
     }
 
-    fn sample_context_with_routes() -> Context {
+    fn sample_context_with_routes() -> Context<AlwaysFirstUpstreamStrategy> {
         let routes_vec = vec!(sample_route_1(), sample_route_2());
         let routes = HashSet::from_iter(routes_vec);
-        Context::build_from_routes(&routes)
+        let upstream_strategy = AlwaysFirstUpstreamStrategy::build();
+        Context::build_from_routes(&routes, upstream_strategy)
     }
 }
