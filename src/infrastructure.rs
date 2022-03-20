@@ -4,7 +4,7 @@ use std::sync::Arc;
 use hyper::{Body, Client, HeaderMap, Request, Response, Uri};
 use hyper::header::HOST;
 use crate::{Context, HapiError};
-use crate::model::model::UpstreamStrategy;
+use crate::model::upstream_strategy::UpstreamStrategy;
 
 type Model<T> = Arc<Context<T>>;
 
