@@ -4,7 +4,7 @@ use hyper::Server;
 use hyper::service::{make_service_fn, service_fn};
 use crate::errors::HapiError;
 use crate::infrastructure::Infrastructure;
-use crate::model::{Context, Route};
+use crate::model::{Context, Route, AlwaysFirstUpstreamStrategy};
 
 mod model;
 mod infrastructure;
@@ -41,8 +41,9 @@ async fn main() -> Result<(), HapiError> {
     Ok(())
 }
 
-fn initialize_context() -> Context {
-    let mut context = Context::build();
+fn initialize_context() -> Context<AlwaysFirstUpstreamStrategy> {
+    let upstream_strategy = AlwaysFirstUpstreamStrategy::build();
+    let mut context = Context::build(upstream_strategy);
     let route = Route::build("Test", &["GET"], &["/test"], &["localhost:8001"]);
     context.register_route(&route);
     log::info!("{:?}", context);
