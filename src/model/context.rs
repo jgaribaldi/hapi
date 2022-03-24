@@ -17,24 +17,13 @@ impl Route {
         uris: &[&str],
         upstreams: &[&str]
     ) -> Self {
-        let deduped_methods = deduplicate(methods);
-        let deduped_uris = deduplicate(uris);
-        let deduped_upstreams = deduplicate(upstreams);
-
         Route {
             name: String::from(name),
-            methods: deduped_methods,
-            uris: deduped_uris,
-            upstreams: deduped_upstreams,
+            methods: methods.into_iter().map(|item| String::from(*item)).collect(),
+            uris: uris.into_iter().map(|item| String::from(*item) ).collect(),
+            upstreams: upstreams.into_iter().map(|item| String::from(*item) ).collect(),
         }
     }
-}
-
-fn deduplicate(list: &[&str]) -> Vec<String> {
-    let set: HashSet<String> = list.iter()
-        .map(|item| { String::from(*item) })
-        .collect();
-    set.into_iter().collect()
 }
 
 #[derive(Debug)]
