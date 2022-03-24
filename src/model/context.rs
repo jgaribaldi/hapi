@@ -20,8 +20,8 @@ impl Route {
         Route {
             name: String::from(name),
             methods: methods.into_iter().map(|item| String::from(*item)).collect(),
-            uris: uris.into_iter().map(|item| String::from(*item) ).collect(),
-            upstreams: upstreams.into_iter().map(|item| String::from(*item) ).collect(),
+            uris: uris.into_iter().map(|item| String::from(*item)).collect(),
+            upstreams: upstreams.into_iter().map(|item| String::from(*item)).collect(),
         }
     }
 }
@@ -188,12 +188,5 @@ mod tests {
             &["uri2", "uri3"],
             &["upstream2"],
         )
-    }
-
-    fn sample_context_with_routes() -> Context<AlwaysFirstUpstreamStrategy> {
-        let routes_vec = vec!(sample_route_1(), sample_route_2());
-        let routes = HashSet::from_iter(routes_vec);
-        let upstream_strategy = AlwaysFirstUpstreamStrategy::build();
-        Context::build_from_routes(&routes, upstream_strategy)
     }
 }

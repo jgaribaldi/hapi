@@ -61,7 +61,7 @@ impl UpstreamStrategy for RoundRobinUpstreamStrategy {
 
 #[cfg(test)]
 mod tests {
-    use crate::{AlwaysFirstUpstreamStrategy, Route};
+    use crate::Route;
     use crate::model::upstream_strategy::{AlwaysFirstUpstreamStrategy, RoundRobinUpstreamStrategy, UpstreamStrategy};
 
     #[test]
