@@ -1,12 +1,13 @@
 use std::fmt::Debug;
 use std::str::FromStr;
-use std::sync::Arc;
+use std::sync::{Arc};
 use hyper::{Body, Client, HeaderMap, Request, Response, Uri};
 use hyper::header::HOST;
+use tokio::sync::Mutex;
 use crate::{Context, HapiError};
 use crate::model::upstream_strategy::UpstreamStrategy;
 
-type Model<T> = Arc<Context<T>>;
+type Model<T> = Arc<Mutex<Context<T>>>;
 
 #[derive(Clone)]
 pub struct Infrastructure<T>
@@ -29,7 +30,8 @@ impl<T> Infrastructure<T>
         let method = request.method().as_str();
         let path = request.uri().path();
 
-        let response = match self.model.get_upstream_for(method, path) {
+        let mut model = self.model.lock().await;
+        let response = match model.get_upstream_for(method, path) {
             Some(upstream) => {
                 let upstream_uri = Uri::from_str(absolute_url_for(upstream.as_str(), path).as_str())?;
                 let headers = headers_for(&request, upstream.as_str());
