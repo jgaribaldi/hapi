@@ -82,14 +82,17 @@ impl<T> Context<T>
     }
 
 
-    pub fn get_upstream_for(&self, method: &str, path: &str) -> Option<String> {
-        self.get_best_matching_route(method, path)
-            .and_then(|route| {
-                self.upstream_strategy.next_for(route)
-            })
+    pub fn get_upstream_for(&mut self, method: &str, path: &str) -> Option<String> {
+        let best_matching_route = self.get_best_matching_route(method, path);
+        if let Some(route) = best_matching_route {
+            let r = route.clone();
+            self.upstream_strategy.next_for(&r)
+        } else {
+            None
+        }
     }
 
-    fn get_best_matching_route(&self, method: &str, path: &str) -> Option<&Route> {
+    fn get_best_matching_route(&mut self, method: &str, path: &str) -> Option<&Route> {
         // TODO: context policy for determining the best matching route
         let relevant_routes = self.get_relevant_routes(path);
 
@@ -149,7 +152,7 @@ mod tests {
         let routes_vec = vec!(sample_route_1(), sample_route_2());
         let routes = HashSet::from_iter(routes_vec);
         let upstream_strategy = AlwaysFirstUpstreamStrategy::build();
-        let context = Context::build_from_routes(&routes, upstream_strategy);
+        let mut context = Context::build_from_routes(&routes, upstream_strategy);
 
         let upstream = context.get_upstream_for("GET", "uri1");
 
@@ -161,7 +164,7 @@ mod tests {
         let routes_vec = vec!(sample_route_1(), sample_route_2());
         let routes = HashSet::from_iter(routes_vec);
         let upstream_strategy = AlwaysFirstUpstreamStrategy::build();
-        let context = Context::build_from_routes(&routes, upstream_strategy);
+        let mut context = Context::build_from_routes(&routes, upstream_strategy);
 
         let upstream = context.get_upstream_for("POST", "uri1");
 
@@ -173,7 +176,7 @@ mod tests {
         let routes_vec = vec!(sample_route_1(), sample_route_2());
         let routes = HashSet::from_iter(routes_vec);
         let upstream_strategy = AlwaysFirstUpstreamStrategy::build();
-        let context = Context::build_from_routes(&routes, upstream_strategy);
+        let mut context = Context::build_from_routes(&routes, upstream_strategy);
 
         let upstream = context.get_upstream_for("GET", "uri4");
 

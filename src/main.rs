@@ -1,7 +1,8 @@
 use std::net::SocketAddr;
-use std::sync::Arc;
+use std::sync::{Arc};
 use hyper::Server;
 use hyper::service::{make_service_fn, service_fn};
+use tokio::sync::Mutex;
 use crate::errors::HapiError;
 use crate::infrastructure::Infrastructure;
 use crate::model::context::{Context, Route};
@@ -18,14 +19,14 @@ async fn main() -> Result<(), HapiError> {
     log::info!("This is Hapi, the Happy API");
     let context = initialize_context();
 
-    let model = Arc::new(context);
+    let model = Arc::new(Mutex::new(context));
     let infrastructure = Infrastructure::build(model);
 
     let make_service = make_service_fn(move |_conn| {
         let infrastructure = infrastructure.clone();
 
         let service = service_fn(move |request| {
-            let infrastructure = infrastructure.clone();
+            let mut infrastructure = infrastructure.clone();
             infrastructure.process_request(request)
         });
         async move { Ok::<_, HapiError>(service) }

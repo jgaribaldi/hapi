@@ -1,7 +1,7 @@
 use crate::Route;
 
 pub trait UpstreamStrategy {
-    fn next_for(&self, route: &Route) -> Option<String>;
+    fn next_for(&mut self, route: &Route) -> Option<String>;
 }
 
 #[derive(Clone, Debug)]
@@ -15,7 +15,7 @@ impl AlwaysFirstUpstreamStrategy {
 }
 
 impl UpstreamStrategy for AlwaysFirstUpstreamStrategy {
-    fn next_for(&self, route: &Route) -> Option<String> {
+    fn next_for(&mut self, route: &Route) -> Option<String> {
         route.upstreams.first()
             .map(|upstream| String::from(upstream))
     }
@@ -34,7 +34,7 @@ mod tests {
             &["uri1", "uri2"],
             &["upstream1", "upstream2"],
         );
-        let strategy = AlwaysFirstUpstreamStrategy::build();
+        let mut strategy = AlwaysFirstUpstreamStrategy::build();
 
         let first_result = strategy.next_for(&route);
         let second_result = strategy.next_for(&route);
