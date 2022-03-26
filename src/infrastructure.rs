@@ -30,27 +30,29 @@ impl<T> Infrastructure<T>
         let method = request.method().as_str();
         let path = request.uri().path();
 
-        let mut model = self.model.lock().await;
-        let response = match model.get_upstream_for(method, path) {
-            Some(upstream) => {
-                let upstream_uri = Uri::from_str(absolute_url_for(upstream.as_str(), path).as_str())?;
-                let headers = headers_for(&request, upstream.as_str());
+        let upstream;
+        {
+            let mut model = self.model.lock().await;
+            upstream = model.get_upstream_for(method, path);
+        }
 
-                let mut upstream_request = Request::from(request);
-                *upstream_request.uri_mut() = upstream_uri;
-                *upstream_request.headers_mut() = headers;
-                log::debug!("Generated: {:?}", &upstream_request);
+        let response = if let Some(upstream) = upstream {
+            let upstream_uri = Uri::from_str(absolute_url_for(upstream.as_str(), path).as_str())?;
+            let headers = headers_for(&request, upstream.as_str());
 
-                let client = Client::new();
-                client.request(upstream_request).await?
-            }
-            None => {
-                log::debug!("No routes found for {:?}", request);
-                Response::builder()
-                    .status(404)
-                    .body(Body::empty())
-                    .unwrap()
-            }
+            let mut upstream_request = Request::from(request);
+            *upstream_request.uri_mut() = upstream_uri;
+            *upstream_request.headers_mut() = headers;
+            log::debug!("Generated: {:?}", &upstream_request);
+
+            let client = Client::new();
+            client.request(upstream_request).await?
+        } else {
+            log::debug!("No routes found for {:?}", request);
+            Response::builder()
+                .status(404)
+                .body(Body::empty())
+                .unwrap()
         };
 
         Ok(response)
