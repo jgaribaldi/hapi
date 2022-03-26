@@ -77,6 +77,24 @@ mod tests {
     }
 
     #[test]
+    fn should_return_always_the_same_value_in_round_robin() {
+        let route = Route::build(
+            "route1",
+            &["GET"],
+            &["uri1", "uri2"],
+            &["upstream1"],
+        );
+        let mut strategy = RoundRobinUpstreamStrategy::build();
+
+        let first_result = strategy.next_for(&route);
+        let second_result = strategy.next_for(&route);
+
+        assert_eq!(Some(String::from("upstream1")), first_result);
+        assert_eq!(Some(String::from("upstream1")), second_result);
+    }
+
+
+    #[test]
     fn should_return_upstreams_in_round_robin() {
         let route = sample_route();
         let mut strategy = RoundRobinUpstreamStrategy::build();
