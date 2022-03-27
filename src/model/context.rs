@@ -12,17 +12,12 @@ pub struct Route {
 
 impl Route {
     pub fn build(
-        name: &str,
-        methods: &[&str],
-        uris: &[&str],
-        upstreams: &[&str]
+        name: String,
+        methods: Vec<String>,
+        uris: Vec<String>,
+        upstreams: Vec<String>,
     ) -> Self {
-        Route {
-            name: String::from(name),
-            methods: methods.into_iter().map(|item| String::from(*item)).collect(),
-            uris: uris.into_iter().map(|item| String::from(*item)).collect(),
-            upstreams: upstreams.into_iter().map(|item| String::from(*item)).collect(),
-        }
+        Route { name, methods, uris, upstreams }
     }
 }
 
@@ -174,19 +169,19 @@ mod tests {
 
     fn sample_route_1() -> Route {
         Route::build(
-            "route1",
-            &["GET"],
-            &["uri1", "uri2"],
-            &["upstream1"],
+            String::from("route1"),
+            vec!(String::from("GET")),
+            vec!(String::from("uri1"), String::from("uri2")),
+            vec!(String::from("upstream1")),
         )
     }
 
     fn sample_route_2() -> Route {
         Route::build(
-            "route2",
-            &["GET"],
-            &["uri2", "uri3"],
-            &["upstream2"],
+            String::from("route2"),
+            vec!(String::from("GET")),
+            vec!(String::from("uri2"), String::from("uri3")),
+            vec!(String::from("upstream2")),
         )
     }
 }
