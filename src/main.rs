@@ -52,7 +52,7 @@ fn initialize_context() -> Context<RoundRobinUpstreamStrategy> {
         vec!(String::from("/test")),
         vec!(String::from("localhost:8001"), String::from("localhost:8002")),
     );
-    context.register_route(&route);
+    context.register_route(route);
     log::info!("{:?}", context);
     context
 }

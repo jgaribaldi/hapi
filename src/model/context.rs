@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fmt::Debug;
 use crate::model::upstream_strategy::UpstreamStrategy;
 
@@ -39,7 +39,7 @@ impl<T> Context<T>
         }
     }
 
-    pub fn build_from_routes(routes: &HashSet<Route>, upstream_strategy: T) -> Self {
+    pub fn build_from_routes(routes: Vec<Route>, upstream_strategy: T) -> Self {
         let mut routes_map: HashMap<String, Vec<Route>> = HashMap::new();
 
         for route in routes {
@@ -47,7 +47,7 @@ impl<T> Context<T>
                 routes_map
                     .entry(String::from(uri))
                     .or_insert_with(Vec::new)
-                    .push((*route).clone())
+                    .push(route.clone())
             }
         }
 
@@ -57,7 +57,7 @@ impl<T> Context<T>
         }
     }
 
-    pub fn register_route(&mut self, route: &Route) {
+    pub fn register_route(&mut self, route: Route) {
         for uri in &route.uris {
             self.routes.entry(String::from(uri))
                 .or_insert_with(Vec::new)
@@ -103,18 +103,15 @@ impl<T> Context<T>
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
-    use std::iter::FromIterator;
     use crate::{Context, Route};
     use crate::model::upstream_strategy::AlwaysFirstUpstreamStrategy;
 
     #[test]
     fn should_create_context_from_routes() {
-        let routes_vec = vec!(sample_route_1(), sample_route_2());
-        let routes = HashSet::from_iter(routes_vec);
+        let routes = vec!(sample_route_1(), sample_route_2());
 
         let upstream_strategy = AlwaysFirstUpstreamStrategy::build();
-        let context = Context::build_from_routes(&routes, upstream_strategy);
+        let context = Context::build_from_routes(routes, upstream_strategy);
         assert_eq!(context.routes.len(), 3);
     }
 
@@ -123,20 +120,20 @@ mod tests {
         let upstream_strategy = AlwaysFirstUpstreamStrategy::build();
         let mut context = Context::build(upstream_strategy);
         let route = sample_route_1();
+        let uris = route.uris.clone();
 
-        context.register_route(&route);
+        context.register_route(route);
 
-        for uri in &route.uris {
-            assert_eq!(context.routes.contains_key(uri), true)
+        for uri in uris {
+            assert_eq!(context.routes.contains_key(&*uri), true)
         }
     }
 
     #[test]
     fn should_find_upstream_for_get() {
-        let routes_vec = vec!(sample_route_1(), sample_route_2());
-        let routes = HashSet::from_iter(routes_vec);
+        let routes = vec!(sample_route_1(), sample_route_2());
         let upstream_strategy = AlwaysFirstUpstreamStrategy::build();
-        let mut context = Context::build_from_routes(&routes, upstream_strategy);
+        let mut context = Context::build_from_routes(routes, upstream_strategy);
 
         let upstream = context.get_upstream_for("GET", "uri1");
 
@@ -145,10 +142,9 @@ mod tests {
 
     #[test]
     fn should_not_find_upstream_for_post() {
-        let routes_vec = vec!(sample_route_1(), sample_route_2());
-        let routes = HashSet::from_iter(routes_vec);
+        let routes = vec!(sample_route_1(), sample_route_2());
         let upstream_strategy = AlwaysFirstUpstreamStrategy::build();
-        let mut context = Context::build_from_routes(&routes, upstream_strategy);
+        let mut context = Context::build_from_routes(routes, upstream_strategy);
 
         let upstream = context.get_upstream_for("POST", "uri1");
 
@@ -157,10 +153,9 @@ mod tests {
 
     #[test]
     fn should_not_find_upstream_for_unknown_uri() {
-        let routes_vec = vec!(sample_route_1(), sample_route_2());
-        let routes = HashSet::from_iter(routes_vec);
+        let routes = vec!(sample_route_1(), sample_route_2());
         let upstream_strategy = AlwaysFirstUpstreamStrategy::build();
-        let mut context = Context::build_from_routes(&routes, upstream_strategy);
+        let mut context = Context::build_from_routes(routes, upstream_strategy);
 
         let upstream = context.get_upstream_for("GET", "uri4");
 
