@@ -25,7 +25,7 @@ impl Route {
 pub struct Context<T>
     where T: UpstreamStrategy + Debug + Clone
 {
-    routes: HashMap<String, Vec<Route>>,
+    routes: HashMap<(String, String), Route>, // (path, method) => route
     upstream_strategy: T, // for now we use the same upstream strategy for all routes
 }
 
@@ -40,14 +40,13 @@ impl<T> Context<T>
     }
 
     pub fn build_from_routes(routes: Vec<Route>, upstream_strategy: T) -> Self {
-        let mut routes_map: HashMap<String, Vec<Route>> = HashMap::new();
+        let mut routes_map: HashMap<(String, String), Route> = HashMap::new();
 
-        for route in routes {
+        for route in &routes {
             for uri in &route.uris {
-                routes_map
-                    .entry(String::from(uri))
-                    .or_insert_with(Vec::new)
-                    .push(route.clone())
+                for method in &route.methods {
+                    routes_map.insert((uri.clone(), method.clone()), route.clone());
+                }
             }
         }
 
@@ -59,44 +58,18 @@ impl<T> Context<T>
 
     pub fn register_route(&mut self, route: Route) {
         for uri in &route.uris {
-            self.routes.entry(String::from(uri))
-                .or_insert_with(Vec::new)
-                .push(route.clone())
-        }
-    }
-
-
-    pub fn get_upstream_for(&mut self, method: &str, path: &str) -> Option<String> {
-        let best_matching_route = self.get_best_matching_route(method, path);
-        if let Some(route) = best_matching_route {
-            let r = route.clone();
-            self.upstream_strategy.next_for(&r)
-        } else {
-            None
-        }
-    }
-
-    fn get_best_matching_route(&self, method: &str, path: &str) -> Option<&Route> {
-        // TODO: context policy for determining the best matching route
-        let relevant_routes = self.get_relevant_routes(path);
-
-        let mut result = None;
-        for route in relevant_routes {
-            if route.methods.contains(&method.to_string()) {
-                // return first relevant route that contains given method
-                result = Some(route);
-                break
+            for method in &route.methods {
+                self.routes.insert((uri.clone(), method.clone()), route.clone());
             }
         }
-        result
     }
 
-    fn get_relevant_routes(&self, uri: &str) -> &[Route] {
-        match self.routes.get(uri) {
-            Some(routes) => {
-                routes.as_slice()
-            },
-            None => &[]
+    pub fn get_upstream_for(&mut self, method: &str, path: &str) -> Option<String> {
+        let best_matching_route = self.routes.get(&(path.to_string(), method.to_string()));
+        if let Some(route) = best_matching_route {
+            self.upstream_strategy.next_for(route)
+        } else {
+            None
         }
     }
 }
@@ -121,11 +94,14 @@ mod tests {
         let mut context = Context::build(upstream_strategy);
         let route = sample_route_1();
         let uris = route.uris.clone();
+        let methods = route.methods.clone();
 
         context.register_route(route);
 
-        for uri in uris {
-            assert_eq!(context.routes.contains_key(&*uri), true)
+        for uri in &uris {
+            for method in &methods {
+                assert_eq!(context.routes.contains_key(&(uri.clone(), method.clone())), true)
+            }
         }
     }
 
