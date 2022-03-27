@@ -79,10 +79,10 @@ mod tests {
     #[test]
     fn should_return_always_the_same_value_in_round_robin() {
         let route = Route::build(
-            "route1",
-            &["GET"],
-            &["uri1", "uri2"],
-            &["upstream1"],
+            String::from("route1"),
+            vec!(String::from("GET")),
+            vec!(String::from("uri1"), String::from("uri2")),
+            vec!(String::from("upstream1")),
         );
         let mut strategy = RoundRobinUpstreamStrategy::build();
 
@@ -112,10 +112,10 @@ mod tests {
 
     fn sample_route() -> Route {
         Route::build(
-            "route1",
-            &["GET"],
-            &["uri1", "uri2"],
-            &["upstream1", "upstream2"],
+            String::from("route1"),
+            vec!(String::from("GET")),
+            vec!(String::from("uri1"), String::from("uri2")),
+            vec!(String::from("upstream1"), String::from("upstream2")),
         )
     }
 }

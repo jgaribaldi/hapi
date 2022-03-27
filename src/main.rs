@@ -46,7 +46,12 @@ async fn main() -> Result<(), HapiError> {
 fn initialize_context() -> Context<RoundRobinUpstreamStrategy> {
     let upstream_strategy = RoundRobinUpstreamStrategy::build();
     let mut context = Context::build(upstream_strategy);
-    let route = Route::build("Test", &["GET"], &["/test"], &["localhost:8001", "localhost:8002"]);
+    let route = Route::build(
+        String::from("Test"),
+        vec!(String::from("GET")),
+        vec!(String::from("/test")),
+        vec!(String::from("localhost:8001"), String::from("localhost:8002")),
+    );
     context.register_route(&route);
     log::info!("{:?}", context);
     context
