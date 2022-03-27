@@ -76,7 +76,7 @@ impl<T> Context<T>
         }
     }
 
-    fn get_best_matching_route(&mut self, method: &str, path: &str) -> Option<&Route> {
+    fn get_best_matching_route(&self, method: &str, path: &str) -> Option<&Route> {
         // TODO: context policy for determining the best matching route
         let relevant_routes = self.get_relevant_routes(path);
 
