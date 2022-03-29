@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::fmt::Debug;
+use regex::Regex;
 use crate::model::upstream_strategy::UpstreamStrategy;
 
 #[derive(Clone, Eq, Hash, PartialEq, Debug)]
@@ -65,12 +66,44 @@ impl<T> Context<T>
     }
 
     pub fn get_upstream_for(&mut self, method: &str, path: &str) -> Option<String> {
-        let best_matching_route = self.routes.get(&(path.to_string(), method.to_string()));
+        let best_matching_route = find_best_route(&self.routes, method, path);
         if let Some(route) = best_matching_route {
             self.upstream_strategy.next_for(route)
         } else {
             None
         }
+    }
+}
+
+fn find_best_route<'a>(
+    routes: &'a HashMap<(String, String), Route>,
+    method: &str,
+    path: &str
+) -> Option<&'a Route> {
+    // first try an exact match of path + method
+    let route = routes.get(&(path.to_string(), method.to_string()));
+
+    match route {
+        None => {
+            // see if given method exists
+            let paths_for_method: Vec<&String> = routes.keys()
+                .filter(|(_, http_method)| http_method == method)
+                .map(|(path, _)| path)
+                .collect();
+
+            // attempt to match given path to key using key as regexp
+            let mut result = None;
+            for existing_path in paths_for_method {
+                let re = Regex::new(existing_path.as_str()).unwrap();
+                if re.is_match(path) {
+                    result = routes.get(&(existing_path.to_string(), method.to_string()));
+                    break;
+                }
+            }
+
+            result
+        }
+        Some(route) => Some(route)
     }
 }
 
