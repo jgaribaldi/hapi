@@ -8,6 +8,7 @@ use tokio::sync::Mutex;
 use crate::errors::HapiError;
 use crate::infrastructure::Infrastructure;
 use crate::model::context::{Context, Route};
+use crate::model::upstream::{RoundRobinUpstreamStrategy, Upstream};
 
 mod infrastructure;
 mod errors;
@@ -18,8 +19,8 @@ async fn main() -> Result<(), HapiError> {
     simple_logger::init_with_env()?;
 
     log::info!("This is Hapi, the Happy API");
-    // let context = initialize_context();
-    //
+    let context = initialize_context();
+
     // let model = Arc::new(Mutex::new(context));
     // let infrastructure = Infrastructure::build(model);
     //
@@ -44,19 +45,21 @@ async fn main() -> Result<(), HapiError> {
     Ok(())
 }
 
-// fn initialize_context() -> Context<RoundRobinUpstreamStrategy> {
-//     let upstream_strategy = RoundRobinUpstreamStrategy::build();
-//     let mut context = Context::build(upstream_strategy);
-//     let route = Route::build(
-//         String::from("Test"),
-//         vec!(String::from("GET")),
-//         vec!(String::from("/test")),
-//         vec!(String::from("localhost:8001"), String::from("localhost:8002")),
-//     );
-//     context.register_route(route);
-//     log::info!("{:?}", context);
-//     context
-// }
+fn initialize_context() -> Context {
+    let route = Route::build(
+        String::from("Test"),
+        vec!(String::from("GET")),
+        vec!(String::from("/test")),
+        vec!(
+            Upstream::build("localhost:8001"),
+            Upstream::build("localhost:8002")
+        ),
+        Box::new(RoundRobinUpstreamStrategy::build(0, 2)),
+    );
+    let context = Context::build_from_routes(vec!(route));
+    log::info!("{:?}", context);
+    context
+}
 
 async fn graceful_quit() {
     tokio::signal::ctrl_c()
