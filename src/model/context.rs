@@ -1,191 +1,218 @@
+use std::borrow::{Borrow, BorrowMut};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use regex::Regex;
-use crate::model::upstream_strategy::UpstreamStrategy;
+use crate::model::upstream::{Upstream, UpstreamStrategy};
 
-#[derive(Clone, Eq, Hash, PartialEq, Debug)]
+#[derive(Clone,Debug)]
 pub struct Route {
     pub name: String,
     pub methods: Vec<String>,
-    pub uris: Vec<String>,
-    pub upstreams: Vec<String>,
+    pub paths: Vec<String>,
+    pub upstreams: Vec<Upstream>,
+    pub strategy: Box<dyn UpstreamStrategy>,
 }
 
 impl Route {
     pub fn build(
         name: String,
         methods: Vec<String>,
-        uris: Vec<String>,
-        upstreams: Vec<String>,
+        paths: Vec<String>,
+        upstreams: Vec<Upstream>,
+        strategy: Box<dyn UpstreamStrategy>,
     ) -> Self {
-        Route { name, methods, uris, upstreams }
+        Route {
+            name,
+            methods,
+            paths,
+            upstreams,
+            strategy,
+        }
     }
 }
 
 #[derive(Debug)]
-pub struct Context<T>
-    where T: UpstreamStrategy + Debug + Clone
-{
-    routes: HashMap<(String, String), Route>, // (path, method) => route
-    upstream_strategy: T, // for now we use the same upstream strategy for all routes
+pub struct Context {
+    routes: Vec<Route>,
+    routing_table: HashMap<(String, String), usize>, // (path, method) => route index
 }
 
-impl<T> Context<T>
-    where T: UpstreamStrategy + Debug + Clone
-{
-    pub fn build(upstream_strategy: T) -> Self {
+impl Context {
+    pub fn build() -> Self {
         Context {
-            routes: HashMap::new(),
-            upstream_strategy
+            routes: Vec::new(),
+            routing_table: HashMap::new(),
         }
     }
 
-    pub fn build_from_routes(routes: Vec<Route>, upstream_strategy: T) -> Self {
-        let mut routes_map: HashMap<(String, String), Route> = HashMap::new();
+    pub fn build_from_routes(
+        routes: Vec<Route>,
+    ) -> Self {
+        let mut table: HashMap<(String, String), usize> = HashMap::new();
 
-        for route in &routes {
-            for uri in &route.uris {
-                for method in &route.methods {
-                    routes_map.insert((uri.clone(), method.clone()), route.clone());
+        for (index, route) in routes.iter().enumerate() {
+            for path in route.paths.iter() {
+                for method in route.methods.iter() {
+                    table.insert((path.to_string(), method.to_string()), index);
                 }
             }
         }
 
         Context {
-            routes: routes_map,
-            upstream_strategy,
+            routes,
+            routing_table: table,
         }
     }
 
-    pub fn register_route(&mut self, route: Route) {
-        for uri in &route.uris {
-            for method in &route.methods {
-                self.routes.insert((uri.clone(), method.clone()), route.clone());
-            }
-        }
+    pub fn upstream_lookup(
+        &mut self,
+        path: &str,
+        method: &str,
+    ) -> Option<String> {
+        self.find_routing_table_index(path, method)
+            .and_then(|index| self.routes.get_mut(index))
+            .and_then(|route| {
+                let next_upstream_index = route.strategy.next();
+                route.upstreams.get(next_upstream_index)
+            })
+            .filter(|upstream| upstream.enabled)
+            .map(|upstream| upstream.address.clone())
     }
 
-    pub fn get_upstream_for(&mut self, method: &str, path: &str) -> Option<String> {
-        let best_matching_route = find_best_route(&self.routes, method, path);
-        if let Some(route) = best_matching_route {
-            self.upstream_strategy.next_for(route)
-        } else {
-            None
-        }
-    }
-}
+    fn find_routing_table_index(
+        &self,
+        path: &str,
+        method: &str,
+    ) -> Option<usize> {
+        // attempt exact match from (path, method) key
+        let exact_key = (path.to_string(), method.to_string());
 
-fn find_best_route<'a>(
-    routes: &'a HashMap<(String, String), Route>,
-    method: &str,
-    path: &str
-) -> Option<&'a Route> {
-    // first try an exact match of path + method
-    let route = routes.get(&(path.to_string(), method.to_string()));
+        self.routing_table.get(&exact_key)
+            .map(|value| {
+                *value
+            })
+            .or_else(|| {
+                let mut result = None;
+                // attempt matching by regexp
+                for (key, value) in self.routing_table.iter() {
+                    let path_regexp = Regex::new(key.0.as_str()).unwrap();
+                    let method_regexp = Regex::new(key.1.as_str()).unwrap();
 
-    match route {
-        None => {
-            // see if given method exists
-            let paths_for_method: Vec<&String> = routes.keys()
-                .filter(|(_, http_method)| http_method == method)
-                .map(|(path, _)| path)
-                .collect();
-
-            // attempt to match given path to key using key as regexp
-            let mut result = None;
-            for existing_path in paths_for_method {
-                let re = Regex::new(existing_path.as_str()).unwrap();
-                if re.is_match(path) {
-                    result = routes.get(&(existing_path.to_string(), method.to_string()));
-                    break;
+                    if path_regexp.is_match(path) && method_regexp.is_match(method) {
+                        result = Some(value.clone());
+                        break
+                    }
                 }
-            }
-
-            result
-        }
-        Some(route) => Some(route)
+                result
+            })
     }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::{Context, Route};
-    use crate::model::upstream_strategy::AlwaysFirstUpstreamStrategy;
+    use crate::model::upstream::{AlwaysFirstUpstreamStrategy, RoundRobinUpstreamStrategy, Upstream, UpstreamStrategy};
 
     #[test]
     fn should_create_context_from_routes() {
-        let routes = vec!(sample_route_1(), sample_route_2());
+        // given:
+        let routes = vec![
+            sample_route_1(Box::new(AlwaysFirstUpstreamStrategy::build())),
+            sample_route_2(Box::new(RoundRobinUpstreamStrategy::build(0, 2))),
+        ];
 
-        let upstream_strategy = AlwaysFirstUpstreamStrategy::build();
-        let context = Context::build_from_routes(routes, upstream_strategy);
-        assert_eq!(context.routes.len(), 3);
+        // when:
+        let context = Context::build_from_routes(routes);
+
+        // then:
+        assert_eq!(context.routing_table.len(), 3);
     }
 
     #[test]
-    fn should_register_route() {
-        let upstream_strategy = AlwaysFirstUpstreamStrategy::build();
-        let mut context = Context::build(upstream_strategy);
-        let route = sample_route_1();
-        let uris = route.uris.clone();
-        let methods = route.methods.clone();
+    fn should_perform_upstream_lookup() {
+        // given:
+        let routes = vec![
+            sample_route_1(Box::new(AlwaysFirstUpstreamStrategy::build())),
+            sample_route_2(Box::new(RoundRobinUpstreamStrategy::build(0, 2))),
+        ];
+        let mut context = Context::build_from_routes(routes);
 
-        context.register_route(route);
+        // when:
+        let upstream = context.upstream_lookup("uri1", "GET");
 
-        for uri in &uris {
-            for method in &methods {
-                assert_eq!(context.routes.contains_key(&(uri.clone(), method.clone())), true)
-            }
-        }
+        // then:
+        assert_eq!("upstream1", upstream.unwrap());
     }
 
     #[test]
-    fn should_find_upstream_for_get() {
-        let routes = vec!(sample_route_1(), sample_route_2());
-        let upstream_strategy = AlwaysFirstUpstreamStrategy::build();
-        let mut context = Context::build_from_routes(routes, upstream_strategy);
+    fn should_match_route_by_path_regexp() {
+        // given:
+        let routes = vec![
+            sample_route_2(Box::new(AlwaysFirstUpstreamStrategy::build())),
+            sample_route_3(Box::new(AlwaysFirstUpstreamStrategy::build())),
+        ];
+        let mut context = Context::build_from_routes(routes);
 
-        let upstream = context.get_upstream_for("GET", "uri1");
+        // when:
+        let upstream = context.upstream_lookup("uri10", "GET");
 
-        assert_eq!(Some(String::from("upstream1")), upstream)
+        // then:
+        assert_eq!("upstream20".to_string(), upstream.unwrap());
     }
 
     #[test]
-    fn should_not_find_upstream_for_post() {
-        let routes = vec!(sample_route_1(), sample_route_2());
-        let upstream_strategy = AlwaysFirstUpstreamStrategy::build();
-        let mut context = Context::build_from_routes(routes, upstream_strategy);
+    fn should_match_route_by_method_regexp() {
+        // given:
+        let routes = vec![
+            sample_route_2(Box::new(AlwaysFirstUpstreamStrategy::build())),
+            sample_route_4(Box::new(AlwaysFirstUpstreamStrategy::build())),
+        ];
+        let mut context = Context::build_from_routes(routes);
 
-        let upstream = context.get_upstream_for("POST", "uri1");
+        // when:
+        let upstream = context.upstream_lookup("uri4", "PATCH");
 
-        assert_eq!(None, upstream)
+        // then:
+        assert_eq!("upstream10".to_string(), upstream.unwrap());
     }
 
-    #[test]
-    fn should_not_find_upstream_for_unknown_uri() {
-        let routes = vec!(sample_route_1(), sample_route_2());
-        let upstream_strategy = AlwaysFirstUpstreamStrategy::build();
-        let mut context = Context::build_from_routes(routes, upstream_strategy);
-
-        let upstream = context.get_upstream_for("GET", "uri4");
-
-        assert_eq!(None, upstream)
-    }
-
-    fn sample_route_1() -> Route {
+    fn sample_route_1(strategy: Box<dyn UpstreamStrategy>) -> Route {
         Route::build(
             String::from("route1"),
             vec!(String::from("GET")),
             vec!(String::from("uri1"), String::from("uri2")),
-            vec!(String::from("upstream1")),
+            vec!(Upstream::build("upstream1"), Upstream::build("upstream2")),
+            strategy,
         )
     }
 
-    fn sample_route_2() -> Route {
+    fn sample_route_2(strategy: Box<dyn UpstreamStrategy>) -> Route {
         Route::build(
             String::from("route2"),
             vec!(String::from("GET")),
             vec!(String::from("uri2"), String::from("uri3")),
-            vec!(String::from("upstream2")),
+            vec!(Upstream::build("upstream3"), Upstream::build("upstream4")),
+            strategy,
+        )
+    }
+
+    fn sample_route_3(strategy: Box<dyn UpstreamStrategy>) -> Route {
+        Route::build(
+            String::from("route3"),
+            vec!(String::from("GET")),
+            vec!(String::from("^uri.*$")),
+            vec!(Upstream::build("upstream20"), Upstream::build("upstream21")),
+            strategy,
+        )
+    }
+
+    fn sample_route_4(strategy: Box<dyn UpstreamStrategy>) -> Route {
+        Route::build(
+            String::from("route4"),
+            vec!(String::from("^.+$")),
+            vec!(String::from("uri4")),
+            vec!(Upstream::build("upstream10"), Upstream::build("upstream11")),
+            strategy,
         )
     }
 }
