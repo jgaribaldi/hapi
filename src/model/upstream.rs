@@ -1,5 +1,4 @@
 use std::fmt::{Debug, Formatter};
-use std::rc::Rc;
 
 #[derive(Clone, Debug)]
 pub struct Upstream {
@@ -26,6 +25,7 @@ impl Upstream {
 
 pub trait UpstreamStrategy {
     fn next(&mut self) -> usize;
+    fn clone_box(&self) -> Box<dyn UpstreamStrategy>;
 }
 
 impl Debug for (dyn UpstreamStrategy + 'static) {
@@ -36,7 +36,7 @@ impl Debug for (dyn UpstreamStrategy + 'static) {
 
 impl Clone for Box<dyn UpstreamStrategy> {
     fn clone(&self) -> Self {
-        self.clone()
+        self.clone_box()
     }
 }
 
@@ -47,6 +47,10 @@ pub struct AlwaysFirstUpstreamStrategy {
 impl UpstreamStrategy for AlwaysFirstUpstreamStrategy {
     fn next(&mut self) -> usize {
         0
+    }
+
+    fn clone_box(&self) -> Box<dyn UpstreamStrategy> {
+        Box::new(self.clone())
     }
 }
 
@@ -67,6 +71,10 @@ impl UpstreamStrategy for RoundRobinUpstreamStrategy {
         let current_index = self.index;
         self.index = (self.index + 1) % self.size;
         current_index
+    }
+
+    fn clone_box(&self) -> Box<dyn UpstreamStrategy> {
+        Box::new(self.clone())
     }
 }
 

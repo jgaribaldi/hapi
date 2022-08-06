@@ -1,4 +1,3 @@
-use std::borrow::{Borrow, BorrowMut};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use regex::Regex;
@@ -31,7 +30,7 @@ impl Route {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone,Debug)]
 pub struct Context {
     routes: Vec<Route>,
     routing_table: HashMap<(String, String), usize>, // (path, method) => route index
@@ -84,7 +83,7 @@ impl Context {
         path: &str,
         method: &str,
     ) -> Option<usize> {
-        // attempt exact match from (path, method) key
+        // attempt exact match by (path, method) key
         let exact_key = (path.to_string(), method.to_string());
 
         self.routing_table.get(&exact_key)
@@ -95,8 +94,12 @@ impl Context {
                 let mut result = None;
                 // attempt matching by regexp
                 for (key, value) in self.routing_table.iter() {
-                    let path_regexp = Regex::new(key.0.as_str()).unwrap();
-                    let method_regexp = Regex::new(key.1.as_str()).unwrap();
+                    let path_regexp = Regex::new(
+                        wrap_string_in_regexp(key.0.as_str()).as_str()
+                    ).unwrap();
+                    let method_regexp = Regex::new(
+                        wrap_string_in_regexp(key.1.as_str()).as_str()
+                    ).unwrap();
 
                     if path_regexp.is_match(path) && method_regexp.is_match(method) {
                         result = Some(value.clone());
@@ -106,6 +109,15 @@ impl Context {
                 result
             })
     }
+
+}
+
+fn wrap_string_in_regexp(string: &str) -> String {
+    let mut result = String::new();
+    result.push_str("^");
+    result.push_str(string);
+    result.push_str("$");
+    result
 }
 
 #[cfg(test)]
@@ -176,6 +188,21 @@ mod tests {
         assert_eq!("upstream10".to_string(), upstream.unwrap());
     }
 
+    #[test]
+    fn should_not_find_route_for_non_exact_match() {
+        // given:
+        let routes = vec![
+            sample_route_5(Box::new(AlwaysFirstUpstreamStrategy::build())),
+        ];
+        let mut context = Context::build_from_routes(routes);
+
+        // when:
+        let upstream = context.upstream_lookup("uri5", "GET");
+
+        // then:
+        assert_eq!(upstream, None)
+    }
+
     fn sample_route_1(strategy: Box<dyn UpstreamStrategy>) -> Route {
         Route::build(
             String::from("route1"),
@@ -212,6 +239,16 @@ mod tests {
             vec!(String::from("^.+$")),
             vec!(String::from("uri4")),
             vec!(Upstream::build("upstream10"), Upstream::build("upstream11")),
+            strategy,
+        )
+    }
+
+    fn sample_route_5(strategy: Box<dyn UpstreamStrategy>) -> Route {
+        Route::build(
+            String::from("route5"),
+            vec!(String::from("GET")),
+            vec!(String::from("uri")),
+            vec!(Upstream::build("upstream20"), Upstream::build("upstream21")),
             strategy,
         )
     }
