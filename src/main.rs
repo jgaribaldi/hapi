@@ -1,21 +1,21 @@
 extern crate core;
 
 use std::net::SocketAddr;
-use std::sync::{Arc};
+use std::sync::{Arc, Mutex};
+
 use hyper::Server;
 use hyper::service::{make_service_fn, service_fn};
-use tokio::sync::Mutex;
+
 use crate::errors::HapiError;
-use crate::model::context::{Context, Route};
+use crate::infrastructure::processor;
+use crate::infrastructure::upstream_probe::probe_upstreams;
+use crate::model::context::Context;
+use crate::model::route::Route;
 use crate::model::upstream::{AlwaysFirstUpstreamStrategy, RoundRobinUpstreamStrategy, Upstream};
 
-mod infrastructure;
 mod errors;
 mod model;
-
-// TODO: this is awful, remove it
-unsafe impl Send for Context {
-}
+mod infrastructure;
 
 #[tokio::main]
 async fn main() -> Result<(), HapiError> {
@@ -24,18 +24,24 @@ async fn main() -> Result<(), HapiError> {
     log::info!("This is Hapi, the Happy API");
     let context = Arc::new(Mutex::new(initialize_context()));
 
+    let ctx = context.clone();
+    tokio::spawn(async move {
+        probe_upstreams(ctx).await;
+    });
+
     let make_service = make_service_fn(move |_conn| {
         let context = context.clone();
         let service = service_fn(move |request| {
-            infrastructure::process_request(context.clone(), request)
+            processor::process_request(context.clone(), request)
         });
         async move { Ok::<_, HapiError>(service) }
     });
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
     let server = Server::bind(&addr)
-        .serve(make_service)
-        .with_graceful_shutdown(graceful_quit());
+    .serve(make_service)
+    .with_graceful_shutdown(graceful_quit());
+
 
     if let Err(e) = server.await {
         log::error!("server error: {}", e);
@@ -52,7 +58,7 @@ fn initialize_context() -> Context {
             Upstream::build("localhost:8001"),
             Upstream::build("localhost:8002"),
         ),
-        Box::new(RoundRobinUpstreamStrategy::build(0, 2)),
+        Box::new(RoundRobinUpstreamStrategy::build(0)),
     );
     let route2 = Route::build(
         String::from("Test 2"),

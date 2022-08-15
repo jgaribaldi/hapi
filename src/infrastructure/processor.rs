@@ -1,8 +1,9 @@
 use std::str::FromStr;
-use std::sync::{Arc};
+use std::sync::{Arc, Mutex};
+
 use hyper::{Body, Client, HeaderMap, Request, Response, Uri};
 use hyper::header::HOST;
-use tokio::sync::Mutex;
+
 use crate::{Context, HapiError};
 
 pub async fn process_request(
@@ -15,7 +16,7 @@ pub async fn process_request(
 
     let upstream;
     {
-        let mut ctx = context.lock().await;
+        let mut ctx = context.lock().unwrap();
         upstream = ctx.upstream_lookup(path, method);
     }
 

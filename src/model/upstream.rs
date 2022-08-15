@@ -21,10 +21,17 @@ impl Upstream {
     pub fn disable(&mut self) {
         self.enabled = false;
     }
+
+    pub fn has_address(
+        &self,
+        address: &str
+    ) -> bool {
+        self.address == String::from(address)
+    }
 }
 
 pub trait UpstreamStrategy {
-    fn next(&mut self) -> usize;
+    fn next(&mut self, upstreams: &[&Upstream]) -> usize;
     fn clone_box(&self) -> Box<dyn UpstreamStrategy>;
 }
 
@@ -45,7 +52,7 @@ pub struct AlwaysFirstUpstreamStrategy {
 }
 
 impl UpstreamStrategy for AlwaysFirstUpstreamStrategy {
-    fn next(&mut self) -> usize {
+    fn next(&mut self, _: &[&Upstream]) -> usize {
         0
     }
 
@@ -63,13 +70,12 @@ impl AlwaysFirstUpstreamStrategy {
 #[derive(Copy, Clone, Debug)]
 pub struct RoundRobinUpstreamStrategy {
     index: usize,
-    size: usize,
 }
 
 impl UpstreamStrategy for RoundRobinUpstreamStrategy {
-    fn next(&mut self) -> usize {
+    fn next(&mut self, upstreams: &[&Upstream]) -> usize {
         let current_index = self.index;
-        self.index = (self.index + 1) % self.size;
+        self.index = (self.index + 1) % upstreams.len();
         current_index
     }
 
@@ -79,10 +85,9 @@ impl UpstreamStrategy for RoundRobinUpstreamStrategy {
 }
 
 impl RoundRobinUpstreamStrategy {
-    pub fn build(index: usize, size: usize) -> Self {
+    pub fn build(index: usize) -> Self {
         RoundRobinUpstreamStrategy {
             index,
-            size
         }
     }
 }
@@ -90,15 +95,19 @@ impl RoundRobinUpstreamStrategy {
 #[cfg(test)]
 mod tests {
     use crate::model::upstream::{AlwaysFirstUpstreamStrategy, RoundRobinUpstreamStrategy, UpstreamStrategy};
+    use crate::Upstream;
 
     #[test]
     fn should_return_always_first() {
         // given:
         let mut strategy = AlwaysFirstUpstreamStrategy::build();
+        let upstream1 = Upstream::build("localhost:8080");
+        let upstream2 = Upstream::build("localhost:8081");
+        let upstreams = vec![&upstream1, &upstream2];
 
         // when:
-        let first_result = strategy.next();
-        let second_result = strategy.next();
+        let first_result = strategy.next(upstreams.as_slice());
+        let second_result = strategy.next(upstreams.as_slice());
 
         // then:
         assert_eq!(first_result, 0);
@@ -108,13 +117,16 @@ mod tests {
     #[test]
     fn should_return_round_robin() {
         // given:
-        let mut strategy = RoundRobinUpstreamStrategy::build(0, 2);
+        let mut strategy = RoundRobinUpstreamStrategy::build(0);
+        let upstream1 = Upstream::build("localhost:8080");
+        let upstream2 = Upstream::build("localhost:8081");
+        let upstreams = vec![&upstream1, &upstream2];
 
         // when:
-        let first_result = strategy.next();
-        let second_result = strategy.next();
-        let third_result = strategy.next();
-        let fourth_result = strategy.next();
+        let first_result = strategy.next(upstreams.as_slice());
+        let second_result = strategy.next(upstreams.as_slice());
+        let third_result = strategy.next(upstreams.as_slice());
+        let fourth_result = strategy.next(upstreams.as_slice());
 
         // then:
         assert_eq!(first_result, 0);
@@ -123,4 +135,27 @@ mod tests {
         assert_eq!(fourth_result, 1);
     }
 
+    #[test]
+    fn should_have_address() {
+        // given:
+        let upstream = Upstream::build("upstream1:8080");
+
+        // when:
+        let result = upstream.has_address("upstream1:8080");
+
+        // then:
+        assert_eq!(true, result)
+    }
+
+    #[test]
+    fn should_not_have_address() {
+        // given:
+        let upstream = Upstream::build("upstream1:8080");
+
+        // when:
+        let result = upstream.has_address("upstream1:8081");
+
+        // then:
+        assert_eq!(false, result)
+    }
 }
