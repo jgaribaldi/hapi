@@ -67,6 +67,15 @@ impl Context {
         }
     }
 
+    pub fn enable_upstream_for_all_routes(
+        &mut self,
+        upstream: &str,
+    ) {
+        for route in self.routes.iter_mut() {
+            route.enable_upstream(upstream)
+        }
+    }
+
     fn find_routing_table_index(
         &self,
         path: &str,
@@ -255,6 +264,28 @@ mod tests {
         }
     }
 
+    #[test]
+    fn should_enable_upstream() {
+        // given:
+        let routes = vec![
+            sample_route_7(Box::new(AlwaysFirstUpstreamStrategy::build())),
+            sample_route_8(Box::new(AlwaysFirstUpstreamStrategy::build())),
+        ];
+        let mut context = Context::build_from_routes(routes);
+
+        // when:
+        context.enable_upstream_for_all_routes("upstream21");
+
+        // then:
+        for route in context.routes.iter() {
+            for u in route.upstreams.iter() {
+                if u.has_address("upstream21") {
+                    assert_eq!(true, u.enabled);
+                }
+            }
+        }
+    }
+
     fn sample_route_1(strategy: Box<dyn UpstreamStrategy>) -> Route {
         Route::build(
             String::from("route1"),
@@ -311,6 +342,32 @@ mod tests {
             vec!(String::from("GET")),
             vec!(String::from("uri2")),
             vec!(Upstream::build("upstream21"), Upstream::build("upstream22")),
+            strategy,
+        )
+    }
+
+    fn sample_route_7(strategy: Box<dyn UpstreamStrategy>) -> Route {
+        let upstream1 = Upstream::build("upstream20");
+        let mut upstream2 = Upstream::build("upstream21");
+        upstream2.enabled = false;
+        Route::build(
+            String::from("route7"),
+            vec!(String::from("GET")),
+            vec!(String::from("uri")),
+            vec!(upstream1, upstream2),
+            strategy,
+        )
+    }
+
+    fn sample_route_8(strategy: Box<dyn UpstreamStrategy>) -> Route {
+        let mut upstream1 = Upstream::build("upstream21");
+        upstream1.enabled = false;
+        let upstream2 = Upstream::build("upstream22");
+        Route::build(
+            String::from("route8"),
+            vec!(String::from("GET")),
+            vec!(String::from("uri2")),
+            vec!(upstream1, upstream2),
             strategy,
         )
     }

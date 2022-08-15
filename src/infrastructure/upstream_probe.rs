@@ -21,7 +21,11 @@ pub async fn probe_upstreams(context: Arc<Mutex<Context>>) {
 
             match poll_result {
                 Ok(_) => {
-                    log::trace!("Upstream available {}", &upstream);
+                    log::debug!("Upstream available {}", &upstream);
+                    {
+                        let mut ctx = context.lock().unwrap();
+                        ctx.enable_upstream_for_all_routes(&upstream.as_str());
+                    }
                 }
                 Err(_) => {
                     log::warn!("Upstream unavailable {} - Disabling", &upstream);

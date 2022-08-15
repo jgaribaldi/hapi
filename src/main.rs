@@ -39,8 +39,8 @@ async fn main() -> Result<(), HapiError> {
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
     let server = Server::bind(&addr)
-    .serve(make_service)
-    .with_graceful_shutdown(graceful_quit());
+        .serve(make_service)
+        .with_graceful_shutdown(graceful_quit());
 
 
     if let Err(e) = server.await {
