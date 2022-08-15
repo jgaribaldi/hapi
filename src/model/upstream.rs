@@ -76,7 +76,15 @@ impl UpstreamStrategy for RoundRobinUpstreamStrategy {
     fn next(&mut self, upstreams: &[&Upstream]) -> usize {
         let current_index = self.index;
         self.index = (self.index + 1) % upstreams.len();
-        current_index
+
+        // this check if for cases in which the upstream array changes in runtime:
+        // the array will shrink in size if the upstream falls and the current index could be
+        // equal to the available upstreams array length
+        if current_index < upstreams.len() {
+            current_index
+        } else {
+            upstreams.len()-1
+        }
     }
 
     fn clone_box(&self) -> Box<dyn UpstreamStrategy> {
