@@ -38,12 +38,8 @@ impl Context {
     ) -> Option<String> {
         self.find_routing_table_index(path, method)
             .and_then(|index| self.routes.get_mut(index))
-            .and_then(|route| {
-                route.next_available_upstream()
-            })
-            .map(|upstream| {
-                upstream.clone().address
-            })
+            .and_then(|route| route.next_available_upstream())
+            .map(|upstream| upstream.address.clone())
     }
 
     pub fn get_upstreams(&self) -> Vec<String> {
