@@ -4,10 +4,12 @@ use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 
 use hyper::Server;
+use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};
 
 use crate::errors::HapiError;
 use crate::infrastructure::processor;
+use crate::infrastructure::stats::Stats;
 use crate::infrastructure::upstream_probe::probe_upstreams;
 use crate::model::context::Context;
 use crate::model::route::Route;
@@ -23,16 +25,20 @@ async fn main() -> Result<(), HapiError> {
 
     log::info!("This is Hapi, the Happy API");
     let context = Arc::new(Mutex::new(initialize_context()));
+    let stats = Arc::new(Mutex::new(Stats::build()));
 
     let ctx = context.clone();
     tokio::spawn(async move {
         probe_upstreams(ctx).await;
     });
 
-    let make_service = make_service_fn(move |_conn| {
+    let make_service = make_service_fn(move |conn: &AddrStream| {
         let context = context.clone();
+        let stats = stats.clone();
+        let client = conn.remote_addr().ip().to_string();
+
         let service = service_fn(move |request| {
-            processor::process_request(context.clone(), request)
+            processor::process_request(context.clone(), request, stats.clone(), client.clone())
         });
         async move { Ok::<_, HapiError>(service) }
     });

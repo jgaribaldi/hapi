@@ -5,24 +5,28 @@ use hyper::{Body, Client, HeaderMap, Request, Response, Uri};
 use hyper::header::HOST;
 
 use crate::{Context, HapiError};
+use crate::infrastructure::stats;
+use crate::infrastructure::stats::Stats;
 
 pub async fn process_request(
     context: Arc<Mutex<Context>>,
     request: Request<Body>,
+    stats: Arc<Mutex<Stats>>,
+    client: String,
 ) -> Result<Response<Body>, HapiError> {
     log::debug!("Received: {:?}", &request);
-    let method = request.method().as_str();
-    let path = request.uri().path();
+    let method = request.method().to_string();
+    let path = request.uri().path().to_string();
 
     let upstream;
     {
         let mut ctx = context.lock().unwrap();
-        upstream = ctx.upstream_lookup(path, method);
+        upstream = ctx.upstream_lookup(path.as_str(), method.as_str());
     }
 
     let response = if let Some(ups) = upstream {
         let upstream_uri = Uri::from_str(
-            absolute_url_for(ups.as_str(), path).as_str()
+            absolute_url_for(ups.as_str(), path.as_str()).as_str()
         )?;
         let headers = headers_for(&request, ups.as_str());
 
@@ -30,6 +34,14 @@ pub async fn process_request(
         *upstream_request.uri_mut() = upstream_uri;
         *upstream_request.headers_mut() = headers;
         log::debug!("Generated: {:?}", &upstream_request);
+
+        stats::count_request(
+            stats,
+            client.as_str(),
+            method.as_str(),
+            path.as_str(),
+            ups.as_str()
+        ).await;
 
         let client = Client::new();
         client.request(upstream_request).await?
