@@ -88,8 +88,9 @@ impl Poller {
         }
     }
 
+
+    /// Returns `true` if the upstream was enabled
     fn check_and_enable_upstream(&mut self) -> bool {
-        /// Returns true if the upstream was enabled
         if !self.upstream_enabled {
             // start counting successes only if upstream is disabled
             self.current_success_count += 1;
@@ -104,8 +105,8 @@ impl Poller {
         return false;
     }
 
+    /// Returns `true` if the upstream was disabled
     fn check_and_disable_upstream(&mut self) -> bool {
-        /// Returns true if the upstream was disabled
         if self.upstream_enabled {
             // start counting errors only if upstream is enabled
             self.current_error_count += 1;
