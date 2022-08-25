@@ -10,7 +10,7 @@ use hyper::service::{make_service_fn, service_fn};
 use crate::errors::HapiError;
 use crate::infrastructure::processor;
 use crate::infrastructure::stats::Stats;
-use crate::infrastructure::upstream_probe::probe_upstreams;
+use crate::infrastructure::upstream_probe::{probe_upstream, UpstreamProbeConfiguration};
 use crate::model::context::Context;
 use crate::model::route::Route;
 use crate::model::upstream::{AlwaysFirstUpstreamStrategy, RoundRobinUpstreamStrategy, Upstream};
@@ -26,11 +26,14 @@ async fn main() -> Result<(), HapiError> {
     log::info!("This is Hapi, the Happy API");
     let context = Arc::new(Mutex::new(initialize_context()));
     let stats = Arc::new(Mutex::new(Stats::build()));
+    let upstream_probe_config = create_upstream_probe_configuration();
 
-    let ctx = context.clone();
-    tokio::spawn(async move {
-        probe_upstreams(ctx).await;
-    });
+    for upc in upstream_probe_config {
+        let ctx = context.clone();
+        tokio::spawn(async move {
+            probe_upstream(upc, ctx).await;
+        });
+    }
 
     let make_service = make_service_fn(move |conn: &AddrStream| {
         let context = context.clone();
@@ -79,6 +82,13 @@ fn initialize_context() -> Context {
     let context = Context::build_from_routes(vec!(route1, route2));
     log::info!("{:?}", context);
     context
+}
+
+fn create_upstream_probe_configuration() -> Vec<UpstreamProbeConfiguration> {
+    vec![
+        UpstreamProbeConfiguration::build("localhost:8001", 2000, 5, 5),
+        UpstreamProbeConfiguration::build("localhost:8002", 4000, 2, 2),
+    ]
 }
 
 async fn graceful_quit() {
