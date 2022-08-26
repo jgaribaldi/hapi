@@ -85,7 +85,6 @@ impl Poller {
         }
     }
 
-
     /// Returns `true` if the upstream was enabled
     fn check_and_enable_upstream(&mut self) -> bool {
         if !self.upstream_enabled {

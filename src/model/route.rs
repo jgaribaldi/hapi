@@ -26,9 +26,7 @@ impl Route {
             strategy,
         }
     }
-}
 
-impl Route {
     pub fn get_upstream_by_address(&self, address: &str) -> Option<&Upstream> {
         for u in self.upstreams.iter() {
             if u.address == address {
