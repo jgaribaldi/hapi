@@ -1,7 +1,7 @@
 use crate::model::upstream::UpstreamStrategy;
 use crate::Upstream;
 
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct Route {
     pub name: String,
     pub methods: Vec<String>,
@@ -29,22 +29,16 @@ impl Route {
 }
 
 impl Route {
-    pub fn get_upstream_by_address(
-        &self,
-        address: &str,
-    ) -> Option<&Upstream> {
+    pub fn get_upstream_by_address(&self, address: &str) -> Option<&Upstream> {
         for u in self.upstreams.iter() {
             if u.address == address {
-                return Some(u)
+                return Some(u);
             }
         }
-        return None
+        return None;
     }
 
-    pub fn enable_upstream(
-        &mut self,
-        upstream: &str,
-    ) {
+    pub fn enable_upstream(&mut self, upstream: &str) {
         for u in self.upstreams.iter_mut() {
             if u.has_address(upstream) && !u.enabled {
                 u.enable()
@@ -52,10 +46,7 @@ impl Route {
         }
     }
 
-    pub fn disable_upstream(
-        &mut self,
-        upstream: &str,
-    ) {
+    pub fn disable_upstream(&mut self, upstream: &str) {
         for u in self.upstreams.iter_mut() {
             if u.has_address(upstream) && u.enabled {
                 u.disable()
@@ -64,9 +55,8 @@ impl Route {
     }
 
     pub fn next_available_upstream(&mut self) -> Option<&Upstream> {
-        let available_upstreams: Vec<&Upstream> = self.upstreams.iter()
-            .filter(|u| u.enabled)
-            .collect();
+        let available_upstreams: Vec<&Upstream> =
+            self.upstreams.iter().filter(|u| u.enabled).collect();
 
         if available_upstreams.len() == 0 {
             None
@@ -79,8 +69,8 @@ impl Route {
 
 #[cfg(test)]
 mod tests {
-    use crate::{RoundRobinUpstreamStrategy, Upstream};
     use crate::model::route::Route;
+    use crate::{RoundRobinUpstreamStrategy, Upstream};
 
     #[test]
     fn should_enable_upstream() {
@@ -135,9 +125,9 @@ mod tests {
 
         Route::build(
             String::from("route1"),
-            vec!(String::from("GET")),
-            vec!(String::from("uri1"), String::from("uri2")),
-            vec!(upstream1, upstream2, upstream3),
+            vec![String::from("GET")],
+            vec![String::from("uri1"), String::from("uri2")],
+            vec![upstream1, upstream2, upstream3],
             Box::new(strategy),
         )
     }

@@ -24,27 +24,19 @@ impl Stats {
         }
     }
 
-    pub fn count_request(
-        &mut self,
-        client: &str,
-        method: &str,
-        path: &str,
-        upstream: &str,
-    ) {
+    pub fn count_request(&mut self, client: &str, method: &str, path: &str, upstream: &str) {
         let key = (
             client.to_string(),
             method.to_string(),
             path.to_string(),
-            upstream.to_string()
+            upstream.to_string(),
         );
         *self.counter.entry(key).or_insert(0) += 1;
     }
 
-    pub fn requests_by_client(
-        &self,
-        client: &str,
-    ) -> Option<u64> {
-        self.counter.iter()
+    pub fn requests_by_client(&self, client: &str) -> Option<u64> {
+        self.counter
+            .iter()
             .filter(|entry| {
                 // entries matching given client
                 let (cli, _, _, _) = entry.0;
@@ -53,15 +45,13 @@ impl Stats {
             .map(|entry| entry.1.clone())
             .reduce(|mut accum, value| {
                 accum += value;
-                return accum
+                return accum;
             })
     }
 
-    pub fn requests_by_upstream(
-        &self,
-        upstream: &str,
-    ) -> Option<u64> {
-        self.counter.iter()
+    pub fn requests_by_upstream(&self, upstream: &str) -> Option<u64> {
+        self.counter
+            .iter()
             .filter(|entry| {
                 // entries matching given upstream
                 let (_, _, _, ups) = entry.0;
@@ -70,7 +60,7 @@ impl Stats {
             .map(|entry| entry.1.clone())
             .reduce(|mut accum, value| {
                 accum += value;
-                return accum
+                return accum;
             })
     }
 

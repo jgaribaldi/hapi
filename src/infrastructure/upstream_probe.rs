@@ -9,8 +9,8 @@ use crate::Context;
 pub struct UpstreamProbeConfiguration {
     pub upstream: String,
     pub poll_interval_ms: u64, // how often to poll upstream, in milliseconds
-    pub error_count: u64, // times in a row for TCP connect error to disable upstream
-    pub success_count: u64, // times in a row for TCP connect success to re-enable upstream
+    pub error_count: u64,      // times in a row for TCP connect error to disable upstream
+    pub success_count: u64,    // times in a row for TCP connect success to re-enable upstream
 }
 
 impl UpstreamProbeConfiguration {
@@ -75,10 +75,7 @@ struct Poller {
 }
 
 impl Poller {
-    fn build(
-        error_count: u64,
-        success_count: u64,
-    ) -> Self {
+    fn build(error_count: u64, success_count: u64) -> Self {
         Poller {
             error_count,
             success_count,

@@ -22,10 +22,7 @@ impl Upstream {
         self.enabled = false;
     }
 
-    pub fn has_address(
-        &self,
-        address: &str
-    ) -> bool {
+    pub fn has_address(&self, address: &str) -> bool {
         self.address == String::from(address)
     }
 }
@@ -48,8 +45,7 @@ impl Clone for Box<dyn UpstreamStrategy> {
 }
 
 #[derive(Copy, Clone, Debug)]
-pub struct AlwaysFirstUpstreamStrategy {
-}
+pub struct AlwaysFirstUpstreamStrategy {}
 
 impl UpstreamStrategy for AlwaysFirstUpstreamStrategy {
     fn next(&mut self, _: &[&Upstream]) -> usize {
@@ -83,7 +79,7 @@ impl UpstreamStrategy for RoundRobinUpstreamStrategy {
         if current_index < upstreams.len() {
             current_index
         } else {
-            upstreams.len()-1
+            upstreams.len() - 1
         }
     }
 
@@ -94,15 +90,15 @@ impl UpstreamStrategy for RoundRobinUpstreamStrategy {
 
 impl RoundRobinUpstreamStrategy {
     pub fn build(index: usize) -> Self {
-        RoundRobinUpstreamStrategy {
-            index,
-        }
+        RoundRobinUpstreamStrategy { index }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::model::upstream::{AlwaysFirstUpstreamStrategy, RoundRobinUpstreamStrategy, UpstreamStrategy};
+    use crate::model::upstream::{
+        AlwaysFirstUpstreamStrategy, RoundRobinUpstreamStrategy, UpstreamStrategy,
+    };
     use crate::Upstream;
 
     #[test]

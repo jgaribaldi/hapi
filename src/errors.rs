@@ -1,7 +1,7 @@
-use std::fmt::{Display, Formatter};
-use hyper::Error;
 use hyper::http::uri::InvalidUri;
+use hyper::Error;
 use log::SetLoggerError;
+use std::fmt::{Display, Formatter};
 
 #[derive(Debug)]
 pub enum HapiError {

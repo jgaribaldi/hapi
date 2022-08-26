@@ -3,9 +3,9 @@ extern crate core;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 
-use hyper::Server;
 use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};
+use hyper::Server;
 
 use crate::errors::HapiError;
 use crate::infrastructure::processor;
@@ -16,8 +16,8 @@ use crate::model::route::Route;
 use crate::model::upstream::{AlwaysFirstUpstreamStrategy, RoundRobinUpstreamStrategy, Upstream};
 
 mod errors;
-mod model;
 mod infrastructure;
+mod model;
 
 #[tokio::main]
 async fn main() -> Result<(), HapiError> {
@@ -51,7 +51,6 @@ async fn main() -> Result<(), HapiError> {
         .serve(make_service)
         .with_graceful_shutdown(graceful_quit());
 
-
     if let Err(e) = server.await {
         log::error!("server error: {}", e);
     }
@@ -61,25 +60,25 @@ async fn main() -> Result<(), HapiError> {
 fn initialize_context() -> Context {
     let route1 = Route::build(
         String::from("Test 1"),
-        vec!(String::from("GET")),
-        vec!(String::from("/test")),
-        vec!(
+        vec![String::from("GET")],
+        vec![String::from("/test")],
+        vec![
             Upstream::build("localhost:8001"),
             Upstream::build("localhost:8002"),
-        ),
+        ],
         Box::new(RoundRobinUpstreamStrategy::build(0)),
     );
     let route2 = Route::build(
         String::from("Test 2"),
-        vec!(String::from("GET")),
-        vec!(String::from("/test2")),
-        vec!(
+        vec![String::from("GET")],
+        vec![String::from("/test2")],
+        vec![
             Upstream::build("localhost:8001"),
             Upstream::build("localhost:8002"),
-        ),
+        ],
         Box::new(AlwaysFirstUpstreamStrategy::build()),
     );
-    let context = Context::build_from_routes(vec!(route1, route2));
+    let context = Context::build_from_routes(vec![route1, route2]);
     log::info!("{:?}", context);
     context
 }

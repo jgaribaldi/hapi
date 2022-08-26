@@ -1,12 +1,12 @@
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
-use hyper::{Body, Client, HeaderMap, Request, Response, Uri};
 use hyper::header::HOST;
+use hyper::{Body, Client, HeaderMap, Request, Response, Uri};
 
-use crate::{Context, HapiError};
 use crate::infrastructure::stats;
 use crate::infrastructure::stats::Stats;
+use crate::{Context, HapiError};
 
 pub async fn process_request(
     context: Arc<Mutex<Context>>,
@@ -25,9 +25,7 @@ pub async fn process_request(
     }
 
     let response = if let Some(ups) = upstream {
-        let upstream_uri = Uri::from_str(
-            absolute_url_for(ups.as_str(), path.as_str()).as_str()
-        )?;
+        let upstream_uri = Uri::from_str(absolute_url_for(ups.as_str(), path.as_str()).as_str())?;
         let headers = headers_for(&request, ups.as_str());
 
         let mut upstream_request = Request::from(request);
@@ -40,17 +38,15 @@ pub async fn process_request(
             client.as_str(),
             method.as_str(),
             path.as_str(),
-            ups.as_str()
-        ).await;
+            ups.as_str(),
+        )
+        .await;
 
         let client = Client::new();
         client.request(upstream_request).await?
     } else {
         log::debug!("No routes found for {:?}", request);
-        Response::builder()
-            .status(404)
-            .body(Body::empty())
-            .unwrap()
+        Response::builder().status(404).body(Body::empty()).unwrap()
     };
 
     log::debug!("Response: {:?}", &response);

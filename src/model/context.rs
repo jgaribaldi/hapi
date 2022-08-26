@@ -5,16 +5,14 @@ use regex::Regex;
 
 use crate::model::route::Route;
 
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct Context {
     routes: Vec<Route>,
     routing_table: HashMap<(String, String), usize>, // (path, method) => route index
 }
 
 impl Context {
-    pub fn build_from_routes(
-        routes: Vec<Route>,
-    ) -> Self {
+    pub fn build_from_routes(routes: Vec<Route>) -> Self {
         let mut table: HashMap<(String, String), usize> = HashMap::new();
 
         for (index, route) in routes.iter().enumerate() {
@@ -31,11 +29,7 @@ impl Context {
         }
     }
 
-    pub fn upstream_lookup(
-        &mut self,
-        path: &str,
-        method: &str,
-    ) -> Option<String> {
+    pub fn upstream_lookup(&mut self, path: &str, method: &str) -> Option<String> {
         self.find_routing_table_index(path, method)
             .and_then(|index| self.routes.get_mut(index))
             .and_then(|route| route.next_available_upstream())
@@ -54,50 +48,37 @@ impl Context {
         upstream_set.into_iter().collect()
     }
 
-    pub fn disable_upstream_for_all_routes(
-        &mut self,
-        upstream: &str,
-    ) {
+    pub fn disable_upstream_for_all_routes(&mut self, upstream: &str) {
         for route in self.routes.iter_mut() {
             route.disable_upstream(upstream)
         }
     }
 
-    pub fn enable_upstream_for_all_routes(
-        &mut self,
-        upstream: &str,
-    ) {
+    pub fn enable_upstream_for_all_routes(&mut self, upstream: &str) {
         for route in self.routes.iter_mut() {
             route.enable_upstream(upstream)
         }
     }
 
-    fn find_routing_table_index(
-        &self,
-        path: &str,
-        method: &str,
-    ) -> Option<usize> {
+    fn find_routing_table_index(&self, path: &str, method: &str) -> Option<usize> {
         // attempt exact match by (path, method) key
         let exact_key = (path.to_string(), method.to_string());
 
-        self.routing_table.get(&exact_key)
-            .map(|value| {
-                *value
-            })
+        self.routing_table
+            .get(&exact_key)
+            .map(|value| *value)
             .or_else(|| {
                 let mut result = None;
                 // attempt matching by regexp
                 for (key, value) in self.routing_table.iter() {
-                    let path_regexp = Regex::new(
-                        wrap_string_in_regexp(key.0.as_str()).as_str()
-                    ).unwrap();
-                    let method_regexp = Regex::new(
-                        wrap_string_in_regexp(key.1.as_str()).as_str()
-                    ).unwrap();
+                    let path_regexp =
+                        Regex::new(wrap_string_in_regexp(key.0.as_str()).as_str()).unwrap();
+                    let method_regexp =
+                        Regex::new(wrap_string_in_regexp(key.1.as_str()).as_str()).unwrap();
 
                     if path_regexp.is_match(path) && method_regexp.is_match(method) {
                         result = Some(value.clone());
-                        break
+                        break;
                     }
                 }
                 result
@@ -114,14 +95,15 @@ fn wrap_string_in_regexp(string: &str) -> String {
 }
 
 // TODO: this is awful, remove it
-unsafe impl Send for Context {
-}
+unsafe impl Send for Context {}
 
 #[cfg(test)]
 mod tests {
-    use crate::Context;
     use crate::model::route::Route;
-    use crate::model::upstream::{AlwaysFirstUpstreamStrategy, RoundRobinUpstreamStrategy, Upstream, UpstreamStrategy};
+    use crate::model::upstream::{
+        AlwaysFirstUpstreamStrategy, RoundRobinUpstreamStrategy, Upstream, UpstreamStrategy,
+    };
+    use crate::Context;
 
     #[test]
     fn should_create_context_from_routes() {
@@ -189,9 +171,9 @@ mod tests {
     #[test]
     fn should_not_find_route_for_non_exact_match() {
         // given:
-        let routes = vec![
-            sample_route_5(Box::new(AlwaysFirstUpstreamStrategy::build())),
-        ];
+        let routes = vec![sample_route_5(Box::new(
+            AlwaysFirstUpstreamStrategy::build(),
+        ))];
         let mut context = Context::build_from_routes(routes);
 
         // when:
@@ -285,9 +267,9 @@ mod tests {
     fn sample_route_1(strategy: Box<dyn UpstreamStrategy>) -> Route {
         Route::build(
             String::from("route1"),
-            vec!(String::from("GET")),
-            vec!(String::from("uri1"), String::from("uri2")),
-            vec!(Upstream::build("upstream1"), Upstream::build("upstream2")),
+            vec![String::from("GET")],
+            vec![String::from("uri1"), String::from("uri2")],
+            vec![Upstream::build("upstream1"), Upstream::build("upstream2")],
             strategy,
         )
     }
@@ -295,9 +277,9 @@ mod tests {
     fn sample_route_2(strategy: Box<dyn UpstreamStrategy>) -> Route {
         Route::build(
             String::from("route2"),
-            vec!(String::from("GET")),
-            vec!(String::from("uri2"), String::from("uri3")),
-            vec!(Upstream::build("upstream3"), Upstream::build("upstream4")),
+            vec![String::from("GET")],
+            vec![String::from("uri2"), String::from("uri3")],
+            vec![Upstream::build("upstream3"), Upstream::build("upstream4")],
             strategy,
         )
     }
@@ -305,9 +287,9 @@ mod tests {
     fn sample_route_3(strategy: Box<dyn UpstreamStrategy>) -> Route {
         Route::build(
             String::from("route3"),
-            vec!(String::from("GET")),
-            vec!(String::from("^uri.*$")),
-            vec!(Upstream::build("upstream20"), Upstream::build("upstream21")),
+            vec![String::from("GET")],
+            vec![String::from("^uri.*$")],
+            vec![Upstream::build("upstream20"), Upstream::build("upstream21")],
             strategy,
         )
     }
@@ -315,9 +297,9 @@ mod tests {
     fn sample_route_4(strategy: Box<dyn UpstreamStrategy>) -> Route {
         Route::build(
             String::from("route4"),
-            vec!(String::from("^.+$")),
-            vec!(String::from("uri4")),
-            vec!(Upstream::build("upstream10"), Upstream::build("upstream11")),
+            vec![String::from("^.+$")],
+            vec![String::from("uri4")],
+            vec![Upstream::build("upstream10"), Upstream::build("upstream11")],
             strategy,
         )
     }
@@ -325,9 +307,9 @@ mod tests {
     fn sample_route_5(strategy: Box<dyn UpstreamStrategy>) -> Route {
         Route::build(
             String::from("route5"),
-            vec!(String::from("GET")),
-            vec!(String::from("uri")),
-            vec!(Upstream::build("upstream20"), Upstream::build("upstream21")),
+            vec![String::from("GET")],
+            vec![String::from("uri")],
+            vec![Upstream::build("upstream20"), Upstream::build("upstream21")],
             strategy,
         )
     }
@@ -335,9 +317,9 @@ mod tests {
     fn sample_route_6(strategy: Box<dyn UpstreamStrategy>) -> Route {
         Route::build(
             String::from("route6"),
-            vec!(String::from("GET")),
-            vec!(String::from("uri2")),
-            vec!(Upstream::build("upstream21"), Upstream::build("upstream22")),
+            vec![String::from("GET")],
+            vec![String::from("uri2")],
+            vec![Upstream::build("upstream21"), Upstream::build("upstream22")],
             strategy,
         )
     }
@@ -348,9 +330,9 @@ mod tests {
         upstream2.enabled = false;
         Route::build(
             String::from("route7"),
-            vec!(String::from("GET")),
-            vec!(String::from("uri")),
-            vec!(upstream1, upstream2),
+            vec![String::from("GET")],
+            vec![String::from("uri")],
+            vec![upstream1, upstream2],
             strategy,
         )
     }
@@ -361,9 +343,9 @@ mod tests {
         let upstream2 = Upstream::build("upstream22");
         Route::build(
             String::from("route8"),
-            vec!(String::from("GET")),
-            vec!(String::from("uri2")),
-            vec!(upstream1, upstream2),
+            vec![String::from("GET")],
+            vec![String::from("uri2")],
+            vec![upstream1, upstream2],
             strategy,
         )
     }
