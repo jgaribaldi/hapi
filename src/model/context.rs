@@ -60,6 +60,15 @@ impl Context {
         }
     }
 
+    pub fn add_route(&mut self, route: Route) {
+        for path in route.paths.iter() {
+            for method in route.methods.iter() {
+                self.routing_table.insert((path.clone(), method.clone()), self.routes.len());
+            }
+        }
+        self.routes.push(route);
+    }
+
     fn find_routing_table_index(&self, path: &str, method: &str) -> Option<usize> {
         // attempt exact match by (path, method) key
         let exact_key = (path.to_string(), method.to_string());
@@ -262,6 +271,21 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn should_add_route() {
+        // given:
+        let route1 = sample_route_1(Box::new(AlwaysFirstUpstreamStrategy::build()));
+        let route2 = sample_route_2(Box::new(AlwaysFirstUpstreamStrategy::build()));
+        let mut context = Context::build_from_routes(vec![route1]);
+
+        // when:
+        context.add_route(route2);
+
+        // then:
+        assert_eq!(2, context.routes.len());
+        assert_eq!(3, context.routing_table.len());
     }
 
     fn sample_route_1(strategy: Box<dyn UpstreamStrategy>) -> Route {
