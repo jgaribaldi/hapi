@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 
 use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};
-use hyper::Server;
+use hyper::{Body, Request, Server};
 
 use crate::errors::HapiError;
 use crate::infrastructure::processor;
@@ -38,10 +38,11 @@ async fn main() -> Result<(), HapiError> {
     let make_service = make_service_fn(move |conn: &AddrStream| {
         let context = context.clone();
         let stats = stats.clone();
-        let client = conn.remote_addr().ip().to_string();
+        let remote_addr = conn.remote_addr();
 
         let service = service_fn(move |request| {
-            processor::process_request(context.clone(), request, stats.clone(), client.clone())
+            let client = identify_client(&remote_addr, &request);
+            processor::process_request(context.clone(), request, stats.clone(), client)
         });
         async move { Ok::<_, HapiError>(service) }
     });
@@ -95,4 +96,8 @@ async fn graceful_quit() {
         .await
         .expect("Could not install graceful quit signal handler");
     log::info!("Shutting down Hapi. Bye :-)")
+}
+
+fn identify_client(remote_addr: &SocketAddr, _request: &Request<Body>) -> String {
+    remote_addr.ip().to_string()
 }
