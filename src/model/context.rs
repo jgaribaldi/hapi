@@ -1,4 +1,4 @@
-use std::collections::{HashMap};
+use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 
 use regex::Regex;
@@ -9,23 +9,29 @@ use crate::model::route::Route;
 pub struct Context {
     routes: Vec<Route>,
     routing_table: HashMap<(String, String), usize>, // (path, method) => route index
+    upstreams: HashSet<String>,
 }
 
 impl Context {
     pub fn build_from_routes(routes: Vec<Route>) -> Self {
-        let mut table: HashMap<(String, String), usize> = HashMap::new();
+        let mut routing_table: HashMap<(String, String), usize> = HashMap::new();
+        let mut upstreams = HashSet::new();
 
         for (index, route) in routes.iter().enumerate() {
             for path in route.paths.iter() {
                 for method in route.methods.iter() {
-                    table.insert((path.to_string(), method.to_string()), index);
+                    routing_table.insert((path.to_string(), method.to_string()), index);
                 }
+            }
+            for upstream in route.upstreams.iter() {
+                upstreams.insert(upstream.address.clone());
             }
         }
 
         Context {
             routes,
-            routing_table: table,
+            routing_table,
+            upstreams,
         }
     }
 
@@ -53,6 +59,9 @@ impl Context {
             for method in route.methods.iter() {
                 self.routing_table.insert((path.clone(), method.clone()), self.routes.len());
             }
+        }
+        for upstream in route.upstreams.iter() {
+            self.upstreams.insert(upstream.address.clone());
         }
         self.routes.push(route);
     }
