@@ -53,14 +53,14 @@ impl Route {
     }
 
     pub fn next_available_upstream(&mut self) -> Option<&Upstream> {
-        let available_upstreams: Vec<&Upstream> =
+        let enabled_upstreams: Vec<&Upstream> =
             self.upstreams.iter().filter(|u| u.enabled).collect();
 
-        if available_upstreams.len() == 0 {
-            None
+        if enabled_upstreams.len() > 0 {
+            let next_upstream_index = self.strategy.next(enabled_upstreams.as_slice());
+            Some(enabled_upstreams[next_upstream_index])
         } else {
-            let next_upstream_index = self.strategy.next(available_upstreams.as_slice());
-            Some(available_upstreams[next_upstream_index])
+            None
         }
     }
 }

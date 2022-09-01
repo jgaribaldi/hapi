@@ -205,7 +205,6 @@ mod tests {
         for upstream in route.upstreams.iter_mut() {
             upstream.disable()
         }
-        println!("{:?}", route);
         let routes = vec![route];
         let mut context = Context::build_from_routes(routes);
 
