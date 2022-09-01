@@ -88,7 +88,7 @@ fn initialize_context() -> Context {
 
 fn create_upstream_probe_configuration() -> Vec<UpstreamProbeConfiguration> {
     let ups_addr1 = UpstreamAddress::FQDN(String::from("localhost:8001"));
-    let ups_addr2 = UpstreamAddress::FQDN(String::from("localhost:8003"));
+    let ups_addr2 = UpstreamAddress::FQDN(String::from("localhost:8002"));
     vec![
         UpstreamProbeConfiguration::build(ups_addr1, 2000, 5, 5),
         UpstreamProbeConfiguration::build(ups_addr2, 4000, 2, 2),
