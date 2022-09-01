@@ -45,10 +45,6 @@ impl Upstream {
     pub fn disable(&mut self) {
         self.enabled = false;
     }
-
-    /*pub fn has_address(&self, address: &UpstreamAddress) -> bool {
-        self.address == UpstreamAddress::FQDN(address.to_string())
-    }*/
 }
 
 pub trait UpstreamStrategy {
@@ -162,28 +158,4 @@ mod tests {
         assert_eq!(third_result, 0);
         assert_eq!(fourth_result, 1);
     }
-
-    /*#[test]
-    fn should_have_address() {
-        // given:
-        let upstream = Upstream::build_from_fqdn("upstream1:8080");
-
-        // when:
-        let result = upstream.has_address("upstream1:8080");
-
-        // then:
-        assert_eq!(true, result)
-    }
-
-    #[test]
-    fn should_not_have_address() {
-        // given:
-        let upstream = Upstream::build_from_fqdn("upstream1:8080");
-
-        // when:
-        let result = upstream.has_address("upstream1:8081");
-
-        // then:
-        assert_eq!(false, result)
-    }*/
 }
