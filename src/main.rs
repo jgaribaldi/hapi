@@ -13,7 +13,9 @@ use crate::infrastructure::stats::Stats;
 use crate::infrastructure::upstream_probe::{probe_upstream, UpstreamProbeConfiguration};
 use crate::model::context::Context;
 use crate::model::route::Route;
-use crate::model::upstream::{AlwaysFirstUpstreamStrategy, RoundRobinUpstreamStrategy, Upstream};
+use crate::model::upstream::{
+    AlwaysFirstUpstreamStrategy, RoundRobinUpstreamStrategy, Upstream, UpstreamAddress,
+};
 
 mod errors;
 mod infrastructure;
@@ -64,8 +66,8 @@ fn initialize_context() -> Context {
         vec![String::from("GET")],
         vec![String::from("/test")],
         vec![
-            Upstream::build("localhost:8001"),
-            Upstream::build("localhost:8002"),
+            Upstream::build_from_fqdn("localhost:8001"),
+            Upstream::build_from_fqdn("localhost:8002"),
         ],
         Box::new(RoundRobinUpstreamStrategy::build(0)),
     );
@@ -74,8 +76,8 @@ fn initialize_context() -> Context {
         vec![String::from("GET")],
         vec![String::from("/test2")],
         vec![
-            Upstream::build("localhost:8001"),
-            Upstream::build("localhost:8002"),
+            Upstream::build_from_fqdn("localhost:8001"),
+            Upstream::build_from_fqdn("localhost:8002"),
         ],
         Box::new(AlwaysFirstUpstreamStrategy::build()),
     );
@@ -85,9 +87,11 @@ fn initialize_context() -> Context {
 }
 
 fn create_upstream_probe_configuration() -> Vec<UpstreamProbeConfiguration> {
+    let ups_addr1 = UpstreamAddress::FQDN(String::from("localhost:8001"));
+    let ups_addr2 = UpstreamAddress::FQDN(String::from("localhost:8003"));
     vec![
-        UpstreamProbeConfiguration::build("localhost:8001", 2000, 5, 5),
-        UpstreamProbeConfiguration::build("localhost:8002", 4000, 2, 2),
+        UpstreamProbeConfiguration::build(ups_addr1, 2000, 5, 5),
+        UpstreamProbeConfiguration::build(ups_addr2, 4000, 2, 2),
     ]
 }
 

@@ -1,4 +1,4 @@
-use crate::model::upstream::UpstreamStrategy;
+use crate::model::upstream::{UpstreamAddress, UpstreamStrategy};
 use crate::Upstream;
 
 #[derive(Clone, Debug)]
@@ -27,26 +27,26 @@ impl Route {
         }
     }
 
-    pub fn get_upstream_by_address(&self, address: &str) -> Option<&Upstream> {
+    pub fn get_upstream_by_address(&self, address: &UpstreamAddress) -> Option<&Upstream> {
         for u in self.upstreams.iter() {
-            if u.address == address {
+            if u.address == *address {
                 return Some(u);
             }
         }
         return None;
     }
 
-    pub fn enable_upstream(&mut self, upstream: &str) {
+    pub fn enable_upstream(&mut self, upstream: &UpstreamAddress) {
         for u in self.upstreams.iter_mut() {
-            if u.has_address(upstream) && !u.enabled {
+            if u.address == *upstream && !u.enabled {
                 u.enable()
             }
         }
     }
 
-    pub fn disable_upstream(&mut self, upstream: &str) {
+    pub fn disable_upstream(&mut self, upstream: &UpstreamAddress) {
         for u in self.upstreams.iter_mut() {
-            if u.has_address(upstream) && u.enabled {
+            if u.address == *upstream && u.enabled {
                 u.disable()
             }
         }
@@ -68,18 +68,20 @@ impl Route {
 #[cfg(test)]
 mod tests {
     use crate::model::route::Route;
+    use crate::model::upstream::UpstreamAddress;
     use crate::{RoundRobinUpstreamStrategy, Upstream};
 
     #[test]
     fn should_enable_upstream() {
         // given:
         let mut route = sample_route();
+        let ups_addr = UpstreamAddress::FQDN(String::from("upstream2"));
 
         // when:
-        route.enable_upstream("upstream2");
+        route.enable_upstream(&ups_addr);
 
         // then:
-        let u = route.get_upstream_by_address("upstream2").unwrap();
+        let u = route.get_upstream_by_address(&ups_addr).unwrap();
         assert_eq!(true, u.enabled)
     }
 
@@ -87,12 +89,13 @@ mod tests {
     fn should_disable_upstream() {
         // given:
         let mut route = sample_route();
+        let ups_addr = UpstreamAddress::FQDN(String::from("upstream1"));
 
         // when:
-        route.disable_upstream("upstream1");
+        route.disable_upstream(&ups_addr);
 
         // then:
-        let u = route.get_upstream_by_address("upstream1").unwrap();
+        let u = route.get_upstream_by_address(&ups_addr).unwrap();
         assert_eq!(false, u.enabled)
     }
 
@@ -108,18 +111,18 @@ mod tests {
         let upstream4 = route.next_available_upstream().unwrap().clone();
 
         // then:
-        assert_eq!(String::from("upstream1"), upstream1.address);
-        assert_eq!(String::from("upstream3"), upstream2.address);
-        assert_eq!(String::from("upstream1"), upstream3.address);
-        assert_eq!(String::from("upstream3"), upstream4.address);
+        assert_eq!(String::from("upstream1"), upstream1.address.to_string());
+        assert_eq!(String::from("upstream3"), upstream2.address.to_string());
+        assert_eq!(String::from("upstream1"), upstream3.address.to_string());
+        assert_eq!(String::from("upstream3"), upstream4.address.to_string());
     }
 
     fn sample_route() -> Route {
         let strategy = RoundRobinUpstreamStrategy::build(0);
-        let upstream1 = Upstream::build("upstream1");
-        let mut upstream2 = Upstream::build("upstream2");
+        let upstream1 = Upstream::build_from_fqdn("upstream1");
+        let mut upstream2 = Upstream::build_from_fqdn("upstream2");
         upstream2.disable();
-        let upstream3 = Upstream::build("upstream3");
+        let upstream3 = Upstream::build_from_fqdn("upstream3");
 
         Route::build(
             String::from("route1"),

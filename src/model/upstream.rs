@@ -1,15 +1,39 @@
 use std::fmt::{Debug, Formatter};
 
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+pub enum UpstreamAddress {
+    FQDN(String),
+    IPv4((u8, u8, u8, u8, u16)),
+}
+
+impl UpstreamAddress {
+    pub fn to_string(&self) -> String {
+        match self {
+            UpstreamAddress::FQDN(fqdn) => fqdn.clone(),
+            UpstreamAddress::IPv4(ipv4) => {
+                format!("{}.{}.{}.{}:{}", ipv4.0, ipv4.1, ipv4.2, ipv4.3, ipv4.4)
+            }
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Upstream {
-    pub address: String,
+    pub address: UpstreamAddress,
     pub enabled: bool,
 }
 
 impl Upstream {
-    pub fn build(address: &str) -> Self {
+    pub fn build_from_fqdn(fqdn: &str) -> Self {
         Upstream {
-            address: address.to_string(),
+            address: UpstreamAddress::FQDN(fqdn.to_string()),
+            enabled: true,
+        }
+    }
+
+    pub fn build_from_ipv4(ipv4: (u8, u8, u8, u8, u16)) -> Self {
+        Upstream {
+            address: UpstreamAddress::IPv4(ipv4),
             enabled: true,
         }
     }
@@ -22,9 +46,9 @@ impl Upstream {
         self.enabled = false;
     }
 
-    pub fn has_address(&self, address: &str) -> bool {
-        self.address == String::from(address)
-    }
+    /*pub fn has_address(&self, address: &UpstreamAddress) -> bool {
+        self.address == UpstreamAddress::FQDN(address.to_string())
+    }*/
 }
 
 pub trait UpstreamStrategy {
@@ -105,8 +129,8 @@ mod tests {
     fn should_return_always_first() {
         // given:
         let mut strategy = AlwaysFirstUpstreamStrategy::build();
-        let upstream1 = Upstream::build("localhost:8080");
-        let upstream2 = Upstream::build("localhost:8081");
+        let upstream1 = Upstream::build_from_fqdn("localhost:8080");
+        let upstream2 = Upstream::build_from_fqdn("localhost:8081");
         let upstreams = vec![&upstream1, &upstream2];
 
         // when:
@@ -122,8 +146,8 @@ mod tests {
     fn should_return_round_robin() {
         // given:
         let mut strategy = RoundRobinUpstreamStrategy::build(0);
-        let upstream1 = Upstream::build("localhost:8080");
-        let upstream2 = Upstream::build("localhost:8081");
+        let upstream1 = Upstream::build_from_fqdn("localhost:8080");
+        let upstream2 = Upstream::build_from_fqdn("localhost:8081");
         let upstreams = vec![&upstream1, &upstream2];
 
         // when:
@@ -139,10 +163,10 @@ mod tests {
         assert_eq!(fourth_result, 1);
     }
 
-    #[test]
+    /*#[test]
     fn should_have_address() {
         // given:
-        let upstream = Upstream::build("upstream1:8080");
+        let upstream = Upstream::build_from_fqdn("upstream1:8080");
 
         // when:
         let result = upstream.has_address("upstream1:8080");
@@ -154,12 +178,12 @@ mod tests {
     #[test]
     fn should_not_have_address() {
         // given:
-        let upstream = Upstream::build("upstream1:8080");
+        let upstream = Upstream::build_from_fqdn("upstream1:8080");
 
         // when:
         let result = upstream.has_address("upstream1:8081");
 
         // then:
         assert_eq!(false, result)
-    }
+    }*/
 }

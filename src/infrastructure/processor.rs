@@ -6,6 +6,7 @@ use hyper::{Body, Client, HeaderMap, Request, Response, Uri};
 
 use crate::infrastructure::stats;
 use crate::infrastructure::stats::Stats;
+use crate::model::upstream::UpstreamAddress;
 use crate::{Context, HapiError};
 
 pub async fn process_request(
@@ -25,8 +26,8 @@ pub async fn process_request(
     }
 
     let response = if let Some(ups) = upstream {
-        let upstream_uri = Uri::from_str(absolute_url_for(ups.as_str(), path.as_str()).as_str())?;
-        let headers = headers_for(&request, ups.as_str());
+        let upstream_uri = Uri::from_str(absolute_url_for(&ups, path.as_str()).as_str())?;
+        let headers = headers_for(&request, &ups);
 
         let mut upstream_request = Request::from(request);
         *upstream_request.uri_mut() = upstream_uri;
@@ -38,7 +39,7 @@ pub async fn process_request(
             client.as_str(),
             method.as_str(),
             path.as_str(),
-            ups.as_str(),
+            ups.to_string().as_str(),
         )
         .await;
 
@@ -53,16 +54,16 @@ pub async fn process_request(
     Ok(response)
 }
 
-fn absolute_url_for(upstream: &str, original_path: &str) -> String {
+fn absolute_url_for(upstream: &UpstreamAddress, original_path: &str) -> String {
     let mut absolute_url = String::from("http://");
-    absolute_url.push_str(upstream);
+    absolute_url.push_str(upstream.to_string().as_str());
     absolute_url.push_str(original_path);
     absolute_url
 }
 
-fn headers_for(request: &Request<Body>, upstream: &str) -> HeaderMap {
+fn headers_for(request: &Request<Body>, upstream: &UpstreamAddress) -> HeaderMap {
     let original_headers = request.headers();
     let mut headers = original_headers.clone();
-    headers.insert(HOST, upstream.parse().unwrap());
+    headers.insert(HOST, upstream.to_string().parse().unwrap());
     headers
 }

@@ -4,10 +4,11 @@ use std::time::Duration;
 use tokio::net::TcpStream;
 use tokio::time::sleep;
 
+use crate::model::upstream::UpstreamAddress;
 use crate::Context;
 
 pub struct UpstreamProbeConfiguration {
-    pub upstream: String,
+    pub upstream: UpstreamAddress,
     pub poll_interval_ms: u64, // how often to poll upstream, in milliseconds
     pub error_count: u64,      // times in a row for TCP connect error to disable upstream
     pub success_count: u64,    // times in a row for TCP connect success to re-enable upstream
@@ -15,13 +16,13 @@ pub struct UpstreamProbeConfiguration {
 
 impl UpstreamProbeConfiguration {
     pub fn build(
-        upstream: &str,
+        upstream: UpstreamAddress,
         poll_interval_ms: u64,
         error_count: u64,
         success_count: u64,
     ) -> Self {
         UpstreamProbeConfiguration {
-            upstream: upstream.to_string(),
+            upstream,
             poll_interval_ms,
             error_count,
             success_count,
@@ -37,29 +38,29 @@ pub async fn probe_upstream(
 
     loop {
         sleep(Duration::from_millis(configuration.poll_interval_ms)).await;
-        let poll_result = TcpStream::connect(&configuration.upstream).await;
+        let poll_result = TcpStream::connect(&configuration.upstream.to_string()).await;
 
         match poll_result {
             Ok(_) => {
                 let upstream_was_enabled = poller.check_and_enable_upstream();
                 if upstream_was_enabled {
                     log::info!(
-                        "Reached success count for upstream {}: re-enabling",
+                        "Reached success count for upstream {:?}: re-enabling",
                         configuration.upstream,
                     );
                     let mut ctx = context.lock().unwrap();
-                    ctx.enable_upstream_for_all_routes(&configuration.upstream.as_str());
+                    ctx.enable_upstream_for_all_routes(&configuration.upstream);
                 }
             }
             Err(_) => {
                 let upstream_was_disabled = poller.check_and_disable_upstream();
                 if upstream_was_disabled {
                     log::warn!(
-                        "Reached error count for upstream {}: disabling",
+                        "Reached error count for upstream {:?}: disabling",
                         configuration.upstream,
                     );
                     let mut ctx = context.lock().unwrap();
-                    ctx.disable_upstream_for_all_routes(&configuration.upstream.as_str());
+                    ctx.disable_upstream_for_all_routes(&configuration.upstream);
                 }
             }
         }
