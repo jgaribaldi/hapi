@@ -1,3 +1,4 @@
+use std::any::TypeId;
 use std::fmt::{Debug, Formatter};
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -50,11 +51,12 @@ impl Upstream {
 pub trait UpstreamStrategy {
     fn next(&mut self, upstreams: &[&Upstream]) -> usize;
     fn clone_box(&self) -> Box<dyn UpstreamStrategy>;
+    fn get_type_name(&self) -> String;
 }
 
 impl Debug for (dyn UpstreamStrategy + 'static) {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "UpstreamStrategy")
+        write!(f, "{}" , self.get_type_name())
     }
 }
 
@@ -74,6 +76,12 @@ impl UpstreamStrategy for AlwaysFirstUpstreamStrategy {
 
     fn clone_box(&self) -> Box<dyn UpstreamStrategy> {
         Box::new(self.clone())
+    }
+
+    fn get_type_name(&self) -> String {
+        let full_type_name = std::any::type_name::<Self>();
+        let mut parts = full_type_name.split("::");
+        parts.last().unwrap().to_string()
     }
 }
 
@@ -105,6 +113,12 @@ impl UpstreamStrategy for RoundRobinUpstreamStrategy {
 
     fn clone_box(&self) -> Box<dyn UpstreamStrategy> {
         Box::new(self.clone())
+    }
+
+    fn get_type_name(&self) -> String {
+        let full_type_name = std::any::type_name::<Self>();
+        let mut parts = full_type_name.split("::");
+        parts.last().unwrap().to_string()
     }
 }
 
