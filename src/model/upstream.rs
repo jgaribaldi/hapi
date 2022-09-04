@@ -17,7 +17,7 @@ impl UpstreamAddress {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Upstream {
     pub address: UpstreamAddress,
     pub enabled: bool,
@@ -55,7 +55,7 @@ pub trait UpstreamStrategy {
 
 impl Debug for (dyn UpstreamStrategy + 'static) {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}" , self.get_type_name())
+        write!(f, "{}", self.get_type_name())
     }
 }
 
@@ -79,7 +79,7 @@ impl UpstreamStrategy for AlwaysFirstUpstreamStrategy {
 
     fn get_type_name(&self) -> String {
         let full_type_name = std::any::type_name::<Self>();
-        let mut parts = full_type_name.split("::");
+        let parts = full_type_name.split("::");
         parts.last().unwrap().to_string()
     }
 }
@@ -116,7 +116,7 @@ impl UpstreamStrategy for RoundRobinUpstreamStrategy {
 
     fn get_type_name(&self) -> String {
         let full_type_name = std::any::type_name::<Self>();
-        let mut parts = full_type_name.split("::");
+        let parts = full_type_name.split("::");
         parts.last().unwrap().to_string()
     }
 }

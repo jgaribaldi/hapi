@@ -65,6 +65,34 @@ impl Route {
     }
 }
 
+impl PartialEq for Route {
+    fn eq(&self, other: &Self) -> bool {
+        if self.name == other.name
+            && self.methods == other.methods
+            && self.paths == other.paths
+            && self.upstreams == other.upstreams
+            && self.strategy.get_type_name() == other.strategy.get_type_name()
+        {
+            true
+        } else {
+            false
+        }
+    }
+
+    fn ne(&self, other: &Self) -> bool {
+        if self.name != other.name
+            || self.methods != other.methods
+            || self.paths != other.paths
+            || self.upstreams != other.upstreams
+            || self.strategy.get_type_name() != other.strategy.get_type_name()
+        {
+            true
+        } else {
+            false
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::model::route::Route;

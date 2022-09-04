@@ -68,6 +68,33 @@ impl Context {
         self.routes.push(route);
     }
 
+    pub fn remove_route(&mut self, route: Route) {
+        let mut index_to_remove = self.routes.len() + 1;
+        for (idx, r) in self.routes.iter().enumerate() {
+            if *r == route {
+                index_to_remove = idx;
+                break;
+            }
+        }
+
+        let mut keys_to_remove = Vec::new();
+        for (key, value) in self.routing_table.iter() {
+            if *value == index_to_remove {
+                keys_to_remove.push(key.clone());
+            }
+        }
+
+        for key_to_remove in keys_to_remove {
+            self.routing_table.remove(&key_to_remove);
+        }
+
+        self.routes.remove(index_to_remove);
+
+        for ups in route.upstreams {
+            self.upstreams.remove(&ups.address);
+        }
+    }
+
     fn find_routing_table_index(&self, path: &str, method: &str) -> Option<usize> {
         // attempt exact match by (path, method) key
         let exact_key = (path.to_string(), method.to_string());
@@ -274,6 +301,24 @@ mod tests {
         // then:
         assert_eq!(2, context.routes.len());
         assert_eq!(3, context.routing_table.len());
+        assert_eq!(4, context.upstreams.len());
+    }
+
+    #[test]
+    fn should_remove_route() {
+        // given:
+        let route1 = sample_route_1(Box::new(AlwaysFirstUpstreamStrategy::build()));
+        let route2 = sample_route_2(Box::new(AlwaysFirstUpstreamStrategy::build()));
+        let route3 = sample_route_1(Box::new(AlwaysFirstUpstreamStrategy::build()));
+        let mut context = Context::build_from_routes(vec![route1, route2]);
+
+        // when:
+        context.remove_route(route3);
+
+        // then:
+        assert_eq!(1, context.routes.len());
+        assert_eq!(2, context.routing_table.len());
+        assert_eq!(2, context.upstreams.len());
     }
 
     fn sample_route_1(strategy: Box<dyn UpstreamStrategy>) -> Route {
