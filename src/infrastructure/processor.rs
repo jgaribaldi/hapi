@@ -22,7 +22,8 @@ pub async fn process_request(
     let maybe_upstream = search_upstream(context, path.as_str(), method.as_str());
     let response = match maybe_upstream {
         Some(upstream_address) => {
-            let upstream_uri = Uri::from_str(absolute_url_for(&upstream_address, path.as_str()).as_str())?;
+            let upstream_uri =
+                Uri::from_str(absolute_url_for(&upstream_address, path.as_str()).as_str())?;
             let headers = headers_for(&request, &upstream_address);
 
             let mut upstream_request = Request::from(request);
@@ -37,7 +38,7 @@ pub async fn process_request(
                 path.as_str(),
                 upstream_address.to_string().as_str(),
             )
-                .await;
+            .await;
 
             let client = Client::new();
             client.request(upstream_request).await?
