@@ -7,7 +7,7 @@ pub struct Route {
     pub methods: Vec<String>,
     pub paths: Vec<String>,
     pub upstreams: Vec<Upstream>,
-    pub strategy: Box<dyn UpstreamStrategy>,
+    pub strategy: Box<dyn UpstreamStrategy + Send>,
 }
 
 impl Route {
@@ -16,7 +16,7 @@ impl Route {
         methods: Vec<String>,
         paths: Vec<String>,
         upstreams: Vec<Upstream>,
-        strategy: Box<dyn UpstreamStrategy>,
+        strategy: Box<dyn UpstreamStrategy + Send>,
     ) -> Self {
         Route {
             name,

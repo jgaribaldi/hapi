@@ -49,17 +49,17 @@ impl Upstream {
 
 pub trait UpstreamStrategy {
     fn next(&mut self, upstreams: &[&Upstream]) -> usize;
-    fn clone_box(&self) -> Box<dyn UpstreamStrategy>;
+    fn clone_box(&self) -> Box<dyn UpstreamStrategy + Send>;
     fn get_type_name(&self) -> String;
 }
 
-impl Debug for (dyn UpstreamStrategy + 'static) {
+impl Debug for (dyn UpstreamStrategy + Send + 'static) {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.get_type_name())
     }
 }
 
-impl Clone for Box<dyn UpstreamStrategy> {
+impl Clone for Box<dyn UpstreamStrategy + Send> {
     fn clone(&self) -> Self {
         self.clone_box()
     }
@@ -73,7 +73,7 @@ impl UpstreamStrategy for AlwaysFirstUpstreamStrategy {
         0
     }
 
-    fn clone_box(&self) -> Box<dyn UpstreamStrategy> {
+    fn clone_box(&self) -> Box<dyn UpstreamStrategy + Send> {
         Box::new(self.clone())
     }
 
@@ -110,7 +110,7 @@ impl UpstreamStrategy for RoundRobinUpstreamStrategy {
         }
     }
 
-    fn clone_box(&self) -> Box<dyn UpstreamStrategy> {
+    fn clone_box(&self) -> Box<dyn UpstreamStrategy + Send> {
         Box::new(self.clone())
     }
 

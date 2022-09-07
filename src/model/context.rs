@@ -129,9 +129,6 @@ fn wrap_string_in_regexp(string: &str) -> String {
     result
 }
 
-// TODO: this is awful, remove it
-unsafe impl Send for Context {}
-
 #[cfg(test)]
 mod tests {
     use crate::model::route::Route;
@@ -321,7 +318,7 @@ mod tests {
         assert_eq!(2, context.upstreams.len());
     }
 
-    fn sample_route_1(strategy: Box<dyn UpstreamStrategy>) -> Route {
+    fn sample_route_1(strategy: Box<dyn UpstreamStrategy + Send>) -> Route {
         Route::build(
             String::from("route1"),
             vec![String::from("GET")],
@@ -334,7 +331,7 @@ mod tests {
         )
     }
 
-    fn sample_route_2(strategy: Box<dyn UpstreamStrategy>) -> Route {
+    fn sample_route_2(strategy: Box<dyn UpstreamStrategy + Send>) -> Route {
         Route::build(
             String::from("route2"),
             vec![String::from("GET")],
@@ -347,7 +344,7 @@ mod tests {
         )
     }
 
-    fn sample_route_3(strategy: Box<dyn UpstreamStrategy>) -> Route {
+    fn sample_route_3(strategy: Box<dyn UpstreamStrategy + Send>) -> Route {
         Route::build(
             String::from("route3"),
             vec![String::from("GET")],
@@ -360,7 +357,7 @@ mod tests {
         )
     }
 
-    fn sample_route_4(strategy: Box<dyn UpstreamStrategy>) -> Route {
+    fn sample_route_4(strategy: Box<dyn UpstreamStrategy + Send>) -> Route {
         Route::build(
             String::from("route4"),
             vec![String::from("^.+$")],
@@ -373,7 +370,7 @@ mod tests {
         )
     }
 
-    fn sample_route_5(strategy: Box<dyn UpstreamStrategy>) -> Route {
+    fn sample_route_5(strategy: Box<dyn UpstreamStrategy + Send>) -> Route {
         Route::build(
             String::from("route5"),
             vec![String::from("GET")],
@@ -386,7 +383,7 @@ mod tests {
         )
     }
 
-    fn sample_route_6(strategy: Box<dyn UpstreamStrategy>) -> Route {
+    fn sample_route_6(strategy: Box<dyn UpstreamStrategy + Send>) -> Route {
         Route::build(
             String::from("route6"),
             vec![String::from("GET")],
@@ -399,7 +396,7 @@ mod tests {
         )
     }
 
-    fn sample_route_7(strategy: Box<dyn UpstreamStrategy>) -> Route {
+    fn sample_route_7(strategy: Box<dyn UpstreamStrategy + Send>) -> Route {
         let upstream1 = Upstream::build_from_fqdn("upstream20");
         let mut upstream2 = Upstream::build_from_fqdn("upstream21");
         upstream2.enabled = false;
@@ -412,7 +409,7 @@ mod tests {
         )
     }
 
-    fn sample_route_8(strategy: Box<dyn UpstreamStrategy>) -> Route {
+    fn sample_route_8(strategy: Box<dyn UpstreamStrategy + Send>) -> Route {
         let mut upstream1 = Upstream::build_from_fqdn("upstream21");
         upstream1.enabled = false;
         let upstream2 = Upstream::build_from_fqdn("upstream22");
