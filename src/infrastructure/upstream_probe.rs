@@ -28,6 +28,15 @@ impl UpstreamProbeConfiguration {
             success_count,
         }
     }
+
+    pub fn build_default(upstream: UpstreamAddress) -> Self {
+        UpstreamProbeConfiguration {
+            upstream,
+            poll_interval_ms: 1000,
+            error_count: 5,
+            success_count: 5,
+        }
+    }
 }
 
 pub async fn probe_upstream(
