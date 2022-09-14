@@ -3,9 +3,9 @@ extern crate core;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 
+use hyper::{Body, Request, Server};
 use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};
-use hyper::{Body, Request, Server};
 
 use crate::errors::HapiError;
 use crate::infrastructure::processor;
@@ -14,7 +14,7 @@ use crate::infrastructure::upstream_probe::{probe_upstream, UpstreamProbeConfigu
 use crate::model::context::Context;
 use crate::model::route::Route;
 use crate::model::upstream::{
-    AlwaysFirstUpstreamStrategy, RoundRobinUpstreamStrategy, Upstream, UpstreamAddress,
+    AlwaysFirstUpstreamStrategy, RoundRobinUpstreamStrategy, Upstream,
 };
 
 mod errors;
@@ -26,11 +26,26 @@ async fn main() -> Result<(), HapiError> {
     simple_logger::init_with_env()?;
 
     log::info!("This is Hapi, the Happy API");
-    let context = Arc::new(Mutex::new(initialize_context()));
-    let stats = Arc::new(Mutex::new(Stats::build()));
-    let upstream_probe_config = create_upstream_probe_configuration();
 
-    for upc in upstream_probe_config {
+    // build an empty context
+    let context = Arc::new(Mutex::new(Context::build_empty()));
+    let stats = Arc::new(Mutex::new(Stats::build()));
+
+    // add some routes so we can get the upstreams for the probe configurations
+    let mut upstreams = Vec::new();
+    {
+        if let Some(added_routes) = context.lock().unwrap().add_route(test_route_1()) {
+            upstreams.extend_from_slice(&added_routes.as_slice());
+        }
+        if let Some(added_routes) = context.lock().unwrap().add_route(test_route_2()) {
+            upstreams.extend_from_slice(&added_routes.as_slice());
+        }
+
+        log::info!("{:?}", context.lock().unwrap());
+    }
+
+    for ups_addr in upstreams {
+        let upc = UpstreamProbeConfiguration::build_default(ups_addr);
         let ctx = context.clone();
         tokio::spawn(async move {
             probe_upstream(upc, ctx).await;
@@ -60,41 +75,6 @@ async fn main() -> Result<(), HapiError> {
     Ok(())
 }
 
-fn initialize_context() -> Context {
-    let route1 = Route::build(
-        String::from("Test 1"),
-        vec![String::from("GET")],
-        vec![String::from("/test")],
-        vec![
-            Upstream::build_from_fqdn("localhost:8001"),
-            Upstream::build_from_fqdn("localhost:8002"),
-        ],
-        Box::new(RoundRobinUpstreamStrategy::build(0)),
-    );
-    let route2 = Route::build(
-        String::from("Test 2"),
-        vec![String::from("GET")],
-        vec![String::from("/test2")],
-        vec![
-            Upstream::build_from_fqdn("localhost:8001"),
-            Upstream::build_from_fqdn("localhost:8002"),
-        ],
-        Box::new(AlwaysFirstUpstreamStrategy::build()),
-    );
-    let context = Context::build_from_routes(vec![route1, route2]);
-    log::info!("{:?}", context);
-    context
-}
-
-fn create_upstream_probe_configuration() -> Vec<UpstreamProbeConfiguration> {
-    let ups_addr1 = UpstreamAddress::FQDN(String::from("localhost:8001"));
-    let ups_addr2 = UpstreamAddress::FQDN(String::from("localhost:8002"));
-    vec![
-        UpstreamProbeConfiguration::build(ups_addr1, 2000, 5, 5),
-        UpstreamProbeConfiguration::build(ups_addr2, 4000, 2, 2),
-    ]
-}
-
 async fn graceful_quit() {
     tokio::signal::ctrl_c()
         .await
@@ -105,3 +85,30 @@ async fn graceful_quit() {
 fn identify_client(remote_addr: &SocketAddr, _request: &Request<Body>) -> String {
     remote_addr.ip().to_string()
 }
+
+fn test_route_1() -> Route {
+    Route::build(
+    String::from("Test 1"),
+    vec![String::from("GET")],
+    vec![String::from("/test")],
+    vec![
+            Upstream::build_from_fqdn("localhost:8001"),
+            Upstream::build_from_fqdn("localhost:8002"),
+        ],
+    Box::new(RoundRobinUpstreamStrategy::build(0)),
+    )
+}
+
+fn test_route_2() -> Route {
+    Route::build(
+    String::from("Test 2"),
+    vec![String::from("GET")],
+    vec![String::from("/test2")],
+    vec![
+            Upstream::build_from_fqdn("localhost:8001"),
+            Upstream::build_from_fqdn("localhost:8002"),
+        ],
+    Box::new(AlwaysFirstUpstreamStrategy::build()),
+    )
+}
+

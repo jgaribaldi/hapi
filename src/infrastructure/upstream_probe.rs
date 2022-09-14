@@ -1,12 +1,14 @@
+use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use tokio::net::TcpStream;
 use tokio::time::sleep;
 
-use crate::model::upstream::UpstreamAddress;
 use crate::Context;
+use crate::model::upstream::UpstreamAddress;
 
+#[derive(Debug)]
 pub struct UpstreamProbeConfiguration {
     pub upstream: UpstreamAddress,
     pub poll_interval_ms: u64, // how often to poll upstream, in milliseconds
@@ -44,6 +46,7 @@ pub async fn probe_upstream(
     context: Arc<Mutex<Context>>,
 ) {
     let mut poller = Poller::build(configuration.error_count, configuration.success_count);
+    log::info!("Probing upstream with configuration {:?}", configuration);
 
     loop {
         sleep(Duration::from_millis(configuration.poll_interval_ms)).await;
