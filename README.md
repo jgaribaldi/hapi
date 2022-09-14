@@ -8,3 +8,8 @@ As such, it's just for fun :-)
 - Disable upstream: disables the given upstream for all the configured routes
 - Add route: adds a given route to the current context
 - Delete route: deletes a given route to the current context
+
+## Build
+```
+cargo build --release
+```
