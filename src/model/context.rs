@@ -36,6 +36,14 @@ impl Context {
         }
     }
 
+    pub fn build_empty() -> Self {
+        Context {
+            routes: Vec::new(),
+            routing_table: HashMap::new(),
+            upstreams: HashSet::new(),
+        }
+    }
+
     pub fn upstream_lookup(&mut self, path: &str, method: &str) -> Option<UpstreamAddress> {
         self.find_routing_table_index(path, method)
             .and_then(|index| self.routes.get_mut(index))
