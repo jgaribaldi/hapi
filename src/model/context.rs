@@ -55,7 +55,11 @@ impl Context {
         }
     }
 
-    pub fn add_route(&mut self, route: Route) {
+    /// Adds the given route to this context. Returns an optional array of upstream addresses
+    /// indicating which upstream addresses were added to this context because they didn't exist
+    /// before.
+    pub fn add_route(&mut self, route: Route) -> Option<Vec<UpstreamAddress>> {
+        let mut added_upstreams = Vec::new();
         for path in route.paths.iter() {
             for method in route.methods.iter() {
                 self.routing_table
@@ -63,12 +67,24 @@ impl Context {
             }
         }
         for upstream in route.upstreams.iter() {
-            self.upstreams.insert(upstream.address.clone());
+            if self.upstreams.insert(upstream.address.clone()) == true {
+                added_upstreams.push(upstream.address.clone());
+            }
         }
         self.routes.push(route);
+
+        if added_upstreams.len() > 0 {
+            Some(added_upstreams)
+        } else {
+            None
+        }
     }
 
-    pub fn remove_route(&mut self, route: Route) {
+    /// Removes the given route from this context. Returns an optional array of upstream addresses
+    /// indicating which upstream addresses were removed from this context, as no other route
+    /// included such addresses.
+    pub fn remove_route(&mut self, route: Route) -> Option<Vec<UpstreamAddress>> {
+        let mut deleted_upstreams = Vec::new();
         let mut index_to_remove = self.routes.len() + 1;
         for (idx, r) in self.routes.iter().enumerate() {
             if *r == route {
@@ -91,7 +107,15 @@ impl Context {
         self.routes.remove(index_to_remove);
 
         for ups in route.upstreams {
-            self.upstreams.remove(&ups.address);
+            if self.upstreams.remove(&ups.address) == true {
+                deleted_upstreams.push(ups.address.clone());
+            }
+        }
+
+        if deleted_upstreams.len() > 0 {
+            Some(deleted_upstreams)
+        } else {
+            None
         }
     }
 
@@ -293,12 +317,19 @@ mod tests {
         let mut context = Context::build_from_routes(vec![route1]);
 
         // when:
-        context.add_route(route2);
+        let added_routes = context.add_route(route2).unwrap();
 
         // then:
         assert_eq!(2, context.routes.len());
         assert_eq!(3, context.routing_table.len());
-        assert_eq!(4, context.upstreams.len());
+        assert_eq!(
+            UpstreamAddress::FQDN("upstream3".to_string()),
+            added_routes[0]
+        );
+        assert_eq!(
+            UpstreamAddress::FQDN("upstream4".to_string()),
+            added_routes[1]
+        );
     }
 
     #[test]
@@ -310,12 +341,19 @@ mod tests {
         let mut context = Context::build_from_routes(vec![route1, route2]);
 
         // when:
-        context.remove_route(route3);
+        let removed_routes = context.remove_route(route3).unwrap();
 
         // then:
         assert_eq!(1, context.routes.len());
         assert_eq!(2, context.routing_table.len());
-        assert_eq!(2, context.upstreams.len());
+        assert_eq!(
+            UpstreamAddress::FQDN("upstream1".to_string()),
+            removed_routes[0]
+        );
+        assert_eq!(
+            UpstreamAddress::FQDN("upstream2".to_string()),
+            removed_routes[1]
+        );
     }
 
     fn sample_route_1(strategy: Box<dyn UpstreamStrategy + Send>) -> Route {
