@@ -5,8 +5,8 @@ use std::time::Duration;
 use tokio::net::TcpStream;
 use tokio::time::sleep;
 
-use crate::Context;
 use crate::model::upstream::UpstreamAddress;
+use crate::Context;
 
 #[derive(Debug)]
 pub struct UpstreamProbeConfiguration {

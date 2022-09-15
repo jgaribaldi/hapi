@@ -3,9 +3,9 @@ extern crate core;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 
-use hyper::{Body, Request, Server};
 use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};
+use hyper::{Body, Request, Server};
 
 use crate::errors::HapiError;
 use crate::infrastructure::processor;
@@ -13,9 +13,7 @@ use crate::infrastructure::stats::Stats;
 use crate::infrastructure::upstream_probe::{probe_upstream, UpstreamProbeConfiguration};
 use crate::model::context::Context;
 use crate::model::route::Route;
-use crate::model::upstream::{
-    AlwaysFirstUpstreamStrategy, RoundRobinUpstreamStrategy, Upstream,
-};
+use crate::model::upstream::{AlwaysFirstUpstreamStrategy, RoundRobinUpstreamStrategy, Upstream};
 
 mod errors;
 mod infrastructure;
@@ -27,22 +25,22 @@ async fn main() -> Result<(), HapiError> {
 
     log::info!("This is Hapi, the Happy API");
 
-    // build an empty context
-    let context = Arc::new(Mutex::new(Context::build_empty()));
-    let stats = Arc::new(Mutex::new(Stats::build()));
-
-    // add some routes so we can get the upstreams for the probe configurations
+    // build an empty context and add some routes so we can get the upstream addresses for the probe
+    // configurations
     let mut upstreams = Vec::new();
-    {
-        if let Some(added_routes) = context.lock().unwrap().add_route(test_route_1()) {
-            upstreams.extend_from_slice(&added_routes.as_slice());
-        }
-        if let Some(added_routes) = context.lock().unwrap().add_route(test_route_2()) {
-            upstreams.extend_from_slice(&added_routes.as_slice());
-        }
+    let mut ctx = Context::build_empty();
 
-        log::info!("{:?}", context.lock().unwrap());
+    if let Some(added_routes) = ctx.add_route(test_route_1()) {
+        upstreams.extend_from_slice(&added_routes.as_slice());
     }
+
+    if let Some(added_routes) = ctx.add_route(test_route_2()) {
+        upstreams.extend_from_slice(&added_routes.as_slice());
+    }
+    log::info!("{:?}", ctx);
+
+    let context = Arc::new(Mutex::new(ctx));
+    let stats = Arc::new(Mutex::new(Stats::build()));
 
     for ups_addr in upstreams {
         let upc = UpstreamProbeConfiguration::build_default(ups_addr);
@@ -88,27 +86,26 @@ fn identify_client(remote_addr: &SocketAddr, _request: &Request<Body>) -> String
 
 fn test_route_1() -> Route {
     Route::build(
-    String::from("Test 1"),
-    vec![String::from("GET")],
-    vec![String::from("/test")],
-    vec![
+        String::from("Test 1"),
+        vec![String::from("GET")],
+        vec![String::from("/test")],
+        vec![
             Upstream::build_from_fqdn("localhost:8001"),
             Upstream::build_from_fqdn("localhost:8002"),
         ],
-    Box::new(RoundRobinUpstreamStrategy::build(0)),
+        Box::new(RoundRobinUpstreamStrategy::build(0)),
     )
 }
 
 fn test_route_2() -> Route {
     Route::build(
-    String::from("Test 2"),
-    vec![String::from("GET")],
-    vec![String::from("/test2")],
-    vec![
+        String::from("Test 2"),
+        vec![String::from("GET")],
+        vec![String::from("/test2")],
+        vec![
             Upstream::build_from_fqdn("localhost:8001"),
             Upstream::build_from_fqdn("localhost:8002"),
         ],
-    Box::new(AlwaysFirstUpstreamStrategy::build()),
+        Box::new(AlwaysFirstUpstreamStrategy::build()),
     )
 }
-
