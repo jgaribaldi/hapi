@@ -52,7 +52,7 @@ impl UpstreamProbeConfiguration {
 pub async fn upstream_probe_handler(mut rx: Receiver<Command>, context: Arc<Mutex<Context>>) {
     let mut probing_tasks = HashMap::new();
     while let Some(message) = rx.recv().await {
-        log::info!("Received message {:?}", message);
+        log::debug!("Received message {:?}", message);
         match message {
             Command::Probe { upc } => {
                 if !probing_tasks.contains_key(&upc.upstream) {
