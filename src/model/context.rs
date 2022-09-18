@@ -127,6 +127,14 @@ impl Context {
         }
     }
 
+    pub fn get_all_upstreams(&self) -> Vec<UpstreamAddress> {
+        let mut result = Vec::new();
+        for ups in self.upstreams.iter() {
+            result.push(ups.clone());
+        }
+        result
+    }
+
     fn find_routing_table_index(&self, path: &str, method: &str) -> Option<usize> {
         // attempt exact match by (path, method) key
         let exact_key = (path.to_string(), method.to_string());

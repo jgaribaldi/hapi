@@ -23,7 +23,6 @@ mod model;
 #[tokio::main]
 async fn main() -> Result<(), HapiError> {
     simple_logger::init_with_env()?;
-
     log::info!("This is Hapi, the Happy API");
 
     // build an empty context and add some routes so we can get the upstream addresses for the probe

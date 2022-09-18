@@ -13,7 +13,7 @@ use crate::Context;
 #[derive(Debug)]
 pub enum Command {
     Probe { upc: UpstreamProbeConfiguration },
-    StopProbe { upc: UpstreamProbeConfiguration },
+    StopProbe { upc: UpstreamAddress },
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
@@ -55,9 +55,9 @@ pub async fn upstream_probe_handler(mut rx: Receiver<Command>, context: Arc<Mute
         log::info!("Received message {:?}", message);
         match message {
             Command::Probe { upc } => {
-                if !probing_tasks.contains_key(&upc) {
+                if !probing_tasks.contains_key(&upc.upstream) {
                     let ctx = context.clone();
-                    let key = upc.clone();
+                    let key = upc.upstream.clone();
                     let handle = tokio::spawn(async { probe_upstream(upc, ctx).await });
                     probing_tasks.insert(key, handle);
                 }
