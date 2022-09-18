@@ -53,10 +53,29 @@ async fn main() -> Result<(), HapiError> {
     for ups_addr in upstreams.iter() {
         let upc = UpstreamProbeConfiguration::build_default(ups_addr);
         match tx2.send(Command::Probe { upc }).await {
-            Ok(_) => log::debug!("Sent Probe command to probe handler for address {:?}", ups_addr),
+            Ok(_) => log::debug!(
+                "Sent Probe command to probe handler for address {:?}",
+                ups_addr
+            ),
             Err(error) => log::error!("Error sending message to probe handler {:?}", error),
         }
     }
+
+    let ctx2 = context.clone();
+    let tx3 = tx.clone();
+    let gsd = async {
+        tokio::signal::ctrl_c()
+            .await
+            .expect("Could not install graceful quit signal handler");
+        let c = ctx2.lock().unwrap();
+        for ups in c.get_all_upstreams().iter() {
+            match tx3.send(Command::StopProbe { ups: ups.clone() }).await {
+                Ok(_) => log::debug!("Sent Probe command to probe handler for address {:?}", ups),
+                Err(error) => log::error!("Error sending message to probe handler {:?}", error),
+            }
+        }
+        log::info!("Shutting down Hapi. Bye :-)")
+    };
 
     let make_service = make_service_fn(move |conn: &AddrStream| {
         let context = context.clone();
@@ -73,19 +92,12 @@ async fn main() -> Result<(), HapiError> {
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
     let server = Server::bind(&addr)
         .serve(make_service)
-        .with_graceful_shutdown(graceful_quit());
+        .with_graceful_shutdown(gsd);
 
     if let Err(e) = server.await {
         log::error!("server error: {}", e);
     }
     Ok(())
-}
-
-async fn graceful_quit() {
-    tokio::signal::ctrl_c()
-        .await
-        .expect("Could not install graceful quit signal handler");
-    log::info!("Shutting down Hapi. Bye :-)")
 }
 
 fn identify_client(remote_addr: &SocketAddr, _request: &Request<Body>) -> String {

@@ -13,7 +13,7 @@ use crate::Context;
 #[derive(Debug)]
 pub enum Command {
     Probe { upc: UpstreamProbeConfiguration },
-    StopProbe { upc: UpstreamAddress },
+    StopProbe { ups: UpstreamAddress },
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
@@ -62,10 +62,11 @@ pub async fn upstream_probe_handler(mut rx: Receiver<Command>, context: Arc<Mute
                     probing_tasks.insert(key, handle);
                 }
             }
-            Command::StopProbe { upc } => {
-                if let Some(handle) = probing_tasks.get(&upc) {
+            Command::StopProbe { ups } => {
+                if let Some(handle) = probing_tasks.get(&ups) {
+                    log::info!("Shutting down upstream probe for {:?}", &ups);
                     handle.abort();
-                    probing_tasks.remove(&upc);
+                    probing_tasks.remove(&ups);
                 }
             }
         }
