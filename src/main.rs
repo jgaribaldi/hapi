@@ -1,3 +1,4 @@
+use std::mem::size_of;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 
@@ -25,51 +26,49 @@ async fn main() -> Result<(), HapiError> {
     simple_logger::init_with_env()?;
     log::info!("This is Hapi, the Happy API");
 
-    // build an empty context and add some routes so we can get the upstream addresses for the probe
-    // configurations
-    let mut upstreams = Vec::new();
-    let mut ctx = Context::build_empty();
+    let context = build_context_from_test_routes();
+    log::info!("{:?}", context);
+    let upstreams_to_probe = context.get_all_upstreams();
 
-    if let Some(added_routes) = ctx.add_route(test_route_1()) {
-        upstreams.extend_from_slice(&added_routes.as_slice());
-    }
+    let thread_safe_context = Arc::new(Mutex::new(context));
+    let gqh_thread_safe_context = thread_safe_context.clone();
+    let uph_thread_safe_context = thread_safe_context.clone();
 
-    if let Some(added_routes) = ctx.add_route(test_route_2()) {
-        upstreams.extend_from_slice(&added_routes.as_slice());
-    }
-    log::info!("{:?}", ctx);
+    let thread_safe_stats = Arc::new(Mutex::new(Stats::build()));
+    let (main_cmd_tx, probe_handler_cmd_rx) = mpsc::channel(1024*size_of::<Command>());
 
-    let context = Arc::new(Mutex::new(ctx));
-    let stats = Arc::new(Mutex::new(Stats::build()));
-
-    let (tx, rx) = mpsc::channel(32);
-    let tx2 = tx.clone();
-    let ctx = context.clone();
-
+    // spawn upstream probe handler thread
     tokio::spawn(async move {
-        upstream_probe_handler(rx, ctx).await;
+        // let thread_safe_context = thread_safe_context.clone();
+        upstream_probe_handler(probe_handler_cmd_rx, uph_thread_safe_context).await;
     });
 
-    for ups_addr in upstreams.iter() {
-        let upc = UpstreamProbeConfiguration::build_default(ups_addr);
-        match tx2.send(Command::Probe { upc }).await {
-            Ok(_) => log::debug!(
-                "Sent Probe command to probe handler for address {:?}",
-                ups_addr
-            ),
+    // send commands to probe current upstreams
+    for ups in upstreams_to_probe.iter() {
+        let upc = UpstreamProbeConfiguration::build_default(ups);
+        match main_cmd_tx.send(Command::Probe { upc }).await {
+            Ok(_) => log::debug!("Sent Probe command to probe handler for address {:?}", ups),
             Err(error) => log::error!("Error sending message to probe handler {:?}", error),
         }
     }
 
-    let ctx2 = context.clone();
-    let tx3 = tx.clone();
-    let gsd = async {
+    // graceful quit handler (TODO: see how can we extract this as an independent function)
+    let graceful_quit_handler = async {
+        // let thread_safe_context = thread_safe_context.clone();
+        let gqh_cmd_tx = main_cmd_tx.clone();
+
         tokio::signal::ctrl_c()
             .await
             .expect("Could not install graceful quit signal handler");
-        let c = ctx2.lock().unwrap();
-        for ups in c.get_all_upstreams().iter() {
-            match tx3.send(Command::StopProbe { ups: ups.clone() }).await {
+
+        let mut upstream_addresses = Vec::new();
+        {
+            let ctx = gqh_thread_safe_context.lock().unwrap();
+            upstream_addresses.extend_from_slice(&ctx.get_all_upstreams().as_slice());
+        }
+
+        for ups in upstream_addresses.iter() {
+            match gqh_cmd_tx.send(Command::StopProbe { ups: ups.clone() }).await {
                 Ok(_) => log::debug!("Sent Probe command to probe handler for address {:?}", ups),
                 Err(error) => log::error!("Error sending message to probe handler {:?}", error),
             }
@@ -78,8 +77,8 @@ async fn main() -> Result<(), HapiError> {
     };
 
     let make_service = make_service_fn(move |conn: &AddrStream| {
-        let context = context.clone();
-        let stats = stats.clone();
+        let context = thread_safe_context.clone();
+        let stats = thread_safe_stats.clone();
         let remote_addr = conn.remote_addr();
 
         let service = service_fn(move |request| {
@@ -92,7 +91,7 @@ async fn main() -> Result<(), HapiError> {
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
     let server = Server::bind(&addr)
         .serve(make_service)
-        .with_graceful_shutdown(gsd);
+        .with_graceful_shutdown(graceful_quit_handler);
 
     if let Err(e) = server.await {
         log::error!("server error: {}", e);
@@ -102,6 +101,13 @@ async fn main() -> Result<(), HapiError> {
 
 fn identify_client(remote_addr: &SocketAddr, _request: &Request<Body>) -> String {
     remote_addr.ip().to_string()
+}
+
+fn build_context_from_test_routes() -> Context {
+    let mut context = Context::build_empty();
+    context.add_route(test_route_1());
+    context.add_route(test_route_2());
+    context
 }
 
 fn test_route_1() -> Route {
