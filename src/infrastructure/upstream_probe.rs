@@ -1,14 +1,22 @@
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use tokio::net::TcpStream;
+use tokio::sync::mpsc::Receiver;
 use tokio::time::sleep;
 
 use crate::model::upstream::UpstreamAddress;
 use crate::Context;
 
 #[derive(Debug)]
+pub enum Command {
+    Probe { upc: UpstreamProbeConfiguration },
+    StopProbe { upc: UpstreamProbeConfiguration },
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct UpstreamProbeConfiguration {
     pub upstream: UpstreamAddress,
     pub poll_interval_ms: u64, // how often to poll upstream, in milliseconds
@@ -18,22 +26,22 @@ pub struct UpstreamProbeConfiguration {
 
 impl UpstreamProbeConfiguration {
     pub fn build(
-        upstream: UpstreamAddress,
+        upstream: &UpstreamAddress,
         poll_interval_ms: u64,
         error_count: u64,
         success_count: u64,
     ) -> Self {
         UpstreamProbeConfiguration {
-            upstream,
+            upstream: upstream.clone(),
             poll_interval_ms,
             error_count,
             success_count,
         }
     }
 
-    pub fn build_default(upstream: UpstreamAddress) -> Self {
+    pub fn build_default(upstream: &UpstreamAddress) -> Self {
         UpstreamProbeConfiguration {
-            upstream,
+            upstream: upstream.clone(),
             poll_interval_ms: 1000,
             error_count: 5,
             success_count: 5,
@@ -41,10 +49,30 @@ impl UpstreamProbeConfiguration {
     }
 }
 
-pub async fn probe_upstream(
-    configuration: UpstreamProbeConfiguration,
-    context: Arc<Mutex<Context>>,
-) {
+pub async fn upstream_probe_handler(mut rx: Receiver<Command>, context: Arc<Mutex<Context>>) {
+    let mut probing_tasks = HashMap::new();
+    while let Some(message) = rx.recv().await {
+        log::info!("Received message {:?}", message);
+        match message {
+            Command::Probe { upc } => {
+                if !probing_tasks.contains_key(&upc) {
+                    let ctx = context.clone();
+                    let key = upc.clone();
+                    let handle = tokio::spawn(async { probe_upstream(upc, ctx).await });
+                    probing_tasks.insert(key, handle);
+                }
+            }
+            Command::StopProbe { upc } => {
+                if let Some(handle) = probing_tasks.get(&upc) {
+                    handle.abort();
+                    probing_tasks.remove(&upc);
+                }
+            }
+        }
+    }
+}
+
+async fn probe_upstream(configuration: UpstreamProbeConfiguration, context: Arc<Mutex<Context>>) {
     let mut poller = Poller::build(configuration.error_count, configuration.success_count);
     log::info!("Probing upstream with configuration {:?}", configuration);
 

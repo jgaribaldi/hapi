@@ -1,16 +1,17 @@
-extern crate core;
-
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 
 use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request, Server};
+use tokio::sync::mpsc;
 
 use crate::errors::HapiError;
 use crate::infrastructure::processor;
 use crate::infrastructure::stats::Stats;
-use crate::infrastructure::upstream_probe::{probe_upstream, UpstreamProbeConfiguration};
+use crate::infrastructure::upstream_probe::{
+    upstream_probe_handler, Command, UpstreamProbeConfiguration,
+};
 use crate::model::context::Context;
 use crate::model::route::Route;
 use crate::model::upstream::{AlwaysFirstUpstreamStrategy, RoundRobinUpstreamStrategy, Upstream};
@@ -42,12 +43,20 @@ async fn main() -> Result<(), HapiError> {
     let context = Arc::new(Mutex::new(ctx));
     let stats = Arc::new(Mutex::new(Stats::build()));
 
-    for ups_addr in upstreams {
+    let (tx, rx) = mpsc::channel(32);
+    let tx2 = tx.clone();
+    let ctx = context.clone();
+
+    tokio::spawn(async move {
+        upstream_probe_handler(rx, ctx).await;
+    });
+
+    for ups_addr in upstreams.iter() {
         let upc = UpstreamProbeConfiguration::build_default(ups_addr);
-        let ctx = context.clone();
-        tokio::spawn(async move {
-            probe_upstream(upc, ctx).await;
-        });
+        match tx2.send(Command::Probe { upc }).await {
+            Ok(_) => log::debug!("Sent Probe command to probe handler for address {:?}", ups_addr),
+            Err(error) => log::error!("Error sending message to probe handler {:?}", error),
+        }
     }
 
     let make_service = make_service_fn(move |conn: &AddrStream| {
