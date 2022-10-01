@@ -2,12 +2,16 @@ use hyper::http::uri::InvalidUri;
 use hyper::Error;
 use log::SetLoggerError;
 use std::fmt::{Display, Formatter};
+use std::net::AddrParseError;
 
 #[derive(Debug)]
 pub enum HapiError {
     SetLoggerError(SetLoggerError),
     InvalidUri(InvalidUri),
-    HyperError(hyper::Error),
+    HyperError(Error),
+    IoError(std::io::Error),
+    SerdeError(serde_json::Error),
+    AddressParseError(AddrParseError),
 }
 
 impl Display for HapiError {
@@ -16,6 +20,11 @@ impl Display for HapiError {
             HapiError::SetLoggerError(set_logger_error) => write!(f, "{:?}", set_logger_error),
             HapiError::InvalidUri(invalid_uri) => write!(f, "{:?}", invalid_uri),
             HapiError::HyperError(hyper_error) => write!(f, "{:?}", hyper_error),
+            HapiError::IoError(io_error) => write!(f, "{:?}", io_error),
+            HapiError::SerdeError(serde_error) => write!(f, "{:?}", serde_error),
+            HapiError::AddressParseError(address_parse_error) => {
+                write!(f, "{:?}", address_parse_error)
+            }
         }
     }
 }
@@ -34,8 +43,26 @@ impl From<InvalidUri> for HapiError {
     }
 }
 
-impl From<hyper::Error> for HapiError {
+impl From<Error> for HapiError {
     fn from(hyper_error: Error) -> Self {
         HapiError::HyperError(hyper_error)
+    }
+}
+
+impl From<std::io::Error> for HapiError {
+    fn from(io_error: std::io::Error) -> Self {
+        HapiError::IoError(io_error)
+    }
+}
+
+impl From<serde_json::Error> for HapiError {
+    fn from(serde_error: serde_json::Error) -> Self {
+        HapiError::SerdeError(serde_error)
+    }
+}
+
+impl From<AddrParseError> for HapiError {
+    fn from(address_parse_error: AddrParseError) -> Self {
+        HapiError::AddressParseError(address_parse_error)
     }
 }

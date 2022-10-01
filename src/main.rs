@@ -10,6 +10,7 @@ use tokio::sync::mpsc::Sender;
 
 use crate::errors::HapiError;
 use crate::infrastructure::processor;
+use crate::infrastructure::settings::HapiSettings;
 use crate::infrastructure::stats::Stats;
 use crate::infrastructure::upstream_probe::{
     upstream_probe_handler, Command, UpstreamProbeConfiguration,
@@ -27,6 +28,9 @@ async fn main() -> Result<(), HapiError> {
     simple_logger::init_with_env()?;
     log::info!("This is Hapi, the Happy API");
 
+    let settings = HapiSettings::load_from_file("src/settings.json")?;
+    log::info!("Settings {:?}", settings);
+
     let context = build_context_from_test_routes();
     log::info!("{:?}", context);
     let upstreams_to_probe = context.get_all_upstreams();
@@ -40,7 +44,6 @@ async fn main() -> Result<(), HapiError> {
 
     // spawn upstream probe handler thread
     tokio::spawn(async move {
-        // let thread_safe_context = thread_safe_context.clone();
         upstream_probe_handler(probe_handler_cmd_rx, uph_thread_safe_context).await;
     });
 
@@ -65,7 +68,7 @@ async fn main() -> Result<(), HapiError> {
         async move { Ok::<_, HapiError>(service) }
     });
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    let addr = settings.server_socket_address()?;
     let server = Server::bind(&addr)
         .serve(make_service)
         .with_graceful_shutdown(graceful_quit_handler(
