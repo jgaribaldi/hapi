@@ -28,7 +28,7 @@ async fn main() -> Result<(), HapiError> {
     simple_logger::init_with_env()?;
     log::info!("This is Hapi, the Happy API");
 
-    let settings = HapiSettings::load_from_file("src/settings.json")?;
+    let settings = HapiSettings::load_from_file("settings.json")?;
     log::info!("Settings {:?}", settings);
 
     let context = build_context_from_test_routes();
