@@ -2,9 +2,9 @@ use std::mem::size_of;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 
+use hyper::{Body, Request, Server};
 use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};
-use hyper::{Body, Request, Server};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::Sender;
 
@@ -13,10 +13,9 @@ use crate::infrastructure::processor;
 use crate::infrastructure::settings::HapiSettings;
 use crate::infrastructure::stats::Stats;
 use crate::infrastructure::upstream_probe::{
-    upstream_probe_handler, Command, UpstreamProbeConfiguration,
+    Command, upstream_probe_handler, UpstreamProbeConfiguration,
 };
 use crate::model::context::Context;
-use crate::model::route::Route;
 use crate::model::upstream::{AlwaysFirstUpstreamStrategy, RoundRobinUpstreamStrategy, Upstream};
 
 mod errors;
@@ -31,8 +30,7 @@ async fn main() -> Result<(), HapiError> {
     let settings = HapiSettings::load_from_file("settings.json")?;
     log::info!("Settings {:?}", settings);
 
-    let context = build_context_from_test_routes();
-    log::info!("{:?}", context);
+    let context = build_context_from_settings(&settings);
 
     let thread_safe_context = Arc::new(Mutex::new(context));
     let gqh_thread_safe_context = thread_safe_context.clone();
@@ -110,35 +108,10 @@ async fn graceful_quit_handler(
     log::info!("Shutting down Hapi. Bye :-)")
 }
 
-fn build_context_from_test_routes() -> Context {
+fn build_context_from_settings(settings: &HapiSettings) -> Context {
     let mut context = Context::build_empty();
-    context.add_route(test_route_1());
-    context.add_route(test_route_2());
+    for r in settings.routes() {
+        context.add_route(r);
+    }
     context
-}
-
-fn test_route_1() -> Route {
-    Route::build(
-        String::from("Test 1"),
-        vec![String::from("GET")],
-        vec![String::from("/test")],
-        vec![
-            Upstream::build_from_fqdn("localhost:8001"),
-            Upstream::build_from_fqdn("localhost:8002"),
-        ],
-        Box::new(RoundRobinUpstreamStrategy::build(0)),
-    )
-}
-
-fn test_route_2() -> Route {
-    Route::build(
-        String::from("Test 2"),
-        vec![String::from("GET")],
-        vec![String::from("/test2")],
-        vec![
-            Upstream::build_from_fqdn("localhost:8001"),
-            Upstream::build_from_fqdn("localhost:8002"),
-        ],
-        Box::new(AlwaysFirstUpstreamStrategy::build()),
-    )
 }

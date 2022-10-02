@@ -1,5 +1,8 @@
 use crate::model::upstream::UpstreamAddress;
-use crate::{HapiError, UpstreamProbeConfiguration};
+use crate::{
+    AlwaysFirstUpstreamStrategy, HapiError, RoundRobinUpstreamStrategy, Upstream,
+    UpstreamProbeConfiguration,
+};
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashSet;
@@ -52,6 +55,40 @@ impl HapiSettings {
                     upstream_address,
                 ));
                 result.push(upc);
+            }
+        }
+
+        result
+    }
+
+    pub fn routes(&self) -> Vec<crate::model::route::Route> {
+        let mut result = Vec::new();
+
+        for r in self.routes.iter() {
+            let name = r.name.clone();
+            let methods = r.methods.clone();
+            let paths = r.paths.clone();
+            let upstreams: Vec<Upstream> = r
+                .upstreams
+                .iter()
+                .map(|ups_addr| Upstream::build_from_fqdn(ups_addr.as_str()))
+                .collect();
+
+            match r.strategy {
+                Strategy::AlwaysFirst => result.push(crate::model::route::Route::build(
+                    name,
+                    methods,
+                    paths,
+                    upstreams,
+                    Box::new(AlwaysFirstUpstreamStrategy::build()),
+                )),
+                Strategy::RoundRobin => result.push(crate::model::route::Route::build(
+                    name,
+                    methods,
+                    paths,
+                    upstreams,
+                    Box::new(RoundRobinUpstreamStrategy::build(0)),
+                )),
             }
         }
 
