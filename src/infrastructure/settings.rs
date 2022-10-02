@@ -11,7 +11,7 @@ pub struct HapiSettings {
     pub ip_address: String,
     pub port: u16,
     pub routes: Vec<Route>,
-    pub probes: Vec<Probe>,
+    pub probes: Option<Vec<Probe>>,
 }
 
 impl HapiSettings {
