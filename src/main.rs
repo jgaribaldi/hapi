@@ -13,7 +13,7 @@ use crate::infrastructure::processor;
 use crate::infrastructure::settings::HapiSettings;
 use crate::infrastructure::stats::Stats;
 use crate::infrastructure::upstream_probe::{
-    Command, upstream_probe_handler, UpstreamProbeConfiguration,
+    Command, upstream_probe_handler,
 };
 use crate::model::context::Context;
 use crate::model::upstream::{AlwaysFirstUpstreamStrategy, RoundRobinUpstreamStrategy, Upstream};
@@ -45,9 +45,9 @@ async fn main() -> Result<(), HapiError> {
     });
 
     // send commands to probe current upstreams
-    for upc in settings.probes().iter() {
-        match main_cmd_tx.send(Command::Probe { upc: upc.clone() }).await {
-            Ok(_) => log::debug!("Sent Probe command to probe handler for address {:?}", upc),
+    for probe in settings.probes().iter() {
+        match main_cmd_tx.send(Command::Probe { probe: probe.clone() }).await {
+            Ok(_) => log::debug!("Sent Probe command to probe handler for address {:?}", probe.upstream_address),
             Err(error) => log::error!("Error sending message to probe handler {:?}", error),
         }
     }
@@ -98,7 +98,7 @@ async fn graceful_quit_handler(
 
     for ups in upstream_addresses.iter() {
         match gqh_cmd_tx
-            .send(Command::StopProbe { ups: ups.clone() })
+            .send(Command::StopProbe { upstream_address: ups.to_string() })
             .await
         {
             Ok(_) => log::debug!("Sent Probe command to probe handler for address {:?}", ups),

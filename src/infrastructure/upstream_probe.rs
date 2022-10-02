@@ -7,46 +7,14 @@ use tokio::net::TcpStream;
 use tokio::sync::mpsc::Receiver;
 use tokio::time::sleep;
 
+use crate::infrastructure::settings::Probe;
 use crate::model::upstream::UpstreamAddress;
 use crate::Context;
 
 #[derive(Debug)]
 pub enum Command {
-    Probe { upc: UpstreamProbeConfiguration },
-    StopProbe { ups: UpstreamAddress },
-}
-
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
-pub struct UpstreamProbeConfiguration {
-    pub upstream: UpstreamAddress,
-    pub poll_interval_ms: u64, // how often to poll upstream, in milliseconds
-    pub error_count: u64,      // times in a row for TCP connect error to disable upstream
-    pub success_count: u64,    // times in a row for TCP connect success to re-enable upstream
-}
-
-impl UpstreamProbeConfiguration {
-    pub fn build(
-        upstream: &UpstreamAddress,
-        poll_interval_ms: u64,
-        error_count: u64,
-        success_count: u64,
-    ) -> Self {
-        UpstreamProbeConfiguration {
-            upstream: upstream.clone(),
-            poll_interval_ms,
-            error_count,
-            success_count,
-        }
-    }
-
-    pub fn build_default(upstream: &UpstreamAddress) -> Self {
-        UpstreamProbeConfiguration {
-            upstream: upstream.clone(),
-            poll_interval_ms: 1000,
-            error_count: 5,
-            success_count: 5,
-        }
-    }
+    Probe { probe: Probe },
+    StopProbe { upstream_address: String },
 }
 
 pub async fn upstream_probe_handler(mut rx: Receiver<Command>, context: Arc<Mutex<Context>>) {
@@ -54,32 +22,32 @@ pub async fn upstream_probe_handler(mut rx: Receiver<Command>, context: Arc<Mute
     while let Some(message) = rx.recv().await {
         log::debug!("Received message {:?}", message);
         match message {
-            Command::Probe { upc } => {
-                if !probing_tasks.contains_key(&upc.upstream) {
+            Command::Probe { probe } => {
+                if !probing_tasks.contains_key(&probe.upstream_address) {
                     let ctx = context.clone();
-                    let key = upc.upstream.clone();
-                    let handle = tokio::spawn(async { probe_upstream(upc, ctx).await });
+                    let key = probe.upstream_address.clone();
+                    let handle = tokio::spawn(async { probe_upstream(probe, ctx).await });
                     probing_tasks.insert(key, handle);
                 }
             }
-            Command::StopProbe { ups } => {
-                if let Some(handle) = probing_tasks.get(&ups) {
-                    log::info!("Shutting down upstream probe for {:?}", &ups);
+            Command::StopProbe { upstream_address } => {
+                if let Some(handle) = probing_tasks.get(&upstream_address) {
+                    log::info!("Shutting down upstream probe for {:?}", &upstream_address);
                     handle.abort();
-                    probing_tasks.remove(&ups);
+                    probing_tasks.remove(&upstream_address);
                 }
             }
         }
     }
 }
 
-async fn probe_upstream(configuration: UpstreamProbeConfiguration, context: Arc<Mutex<Context>>) {
+async fn probe_upstream(configuration: Probe, context: Arc<Mutex<Context>>) {
     let mut poller = Poller::build(configuration.error_count, configuration.success_count);
     log::info!("Probing upstream with configuration {:?}", configuration);
 
     loop {
         sleep(Duration::from_millis(configuration.poll_interval_ms)).await;
-        let poll_result = TcpStream::connect(&configuration.upstream.to_string()).await;
+        let poll_result = TcpStream::connect(&configuration.upstream_address).await;
 
         match poll_result {
             Ok(_) => {
@@ -87,10 +55,11 @@ async fn probe_upstream(configuration: UpstreamProbeConfiguration, context: Arc<
                 if upstream_was_enabled {
                     log::info!(
                         "Reached success count for upstream {:?}: re-enabling",
-                        configuration.upstream,
+                        configuration.upstream_address,
                     );
+                    let addr = UpstreamAddress::FQDN(configuration.upstream_address.clone());
                     let mut ctx = context.lock().unwrap();
-                    ctx.enable_upstream_for_all_routes(&configuration.upstream);
+                    ctx.enable_upstream_for_all_routes(&addr);
                 }
             }
             Err(_) => {
@@ -98,10 +67,11 @@ async fn probe_upstream(configuration: UpstreamProbeConfiguration, context: Arc<
                 if upstream_was_disabled {
                     log::warn!(
                         "Reached error count for upstream {:?}: disabling",
-                        configuration.upstream,
+                        configuration.upstream_address,
                     );
+                    let addr = UpstreamAddress::FQDN(configuration.upstream_address.clone());
                     let mut ctx = context.lock().unwrap();
-                    ctx.disable_upstream_for_all_routes(&configuration.upstream);
+                    ctx.disable_upstream_for_all_routes(&addr);
                 }
             }
         }

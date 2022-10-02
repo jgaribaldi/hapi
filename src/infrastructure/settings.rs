@@ -1,15 +1,15 @@
-use crate::model::upstream::UpstreamAddress;
-use crate::{
-    AlwaysFirstUpstreamStrategy, HapiError, RoundRobinUpstreamStrategy, Upstream,
-    UpstreamProbeConfiguration,
-};
-use serde::Deserialize;
-use serde::Serialize;
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::BufReader;
 use std::net::SocketAddr;
 use std::path::Path;
+
+use serde::Deserialize;
+use serde::Serialize;
+
+use crate::{
+    AlwaysFirstUpstreamStrategy, HapiError, RoundRobinUpstreamStrategy, Upstream,
+};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct HapiSettings {
@@ -36,29 +36,15 @@ impl HapiSettings {
         Ok(result)
     }
 
-    pub fn probes(&self) -> Vec<UpstreamProbeConfiguration> {
-        let mut result = Vec::new();
-
-        if let Some(probe_settings) = self.probes.as_ref() {
-            for probe in probe_settings.iter() {
-                let upc = UpstreamProbeConfiguration::build(
-                    &UpstreamAddress::FQDN(probe.upstream_address.clone()),
-                    probe.poll_interval_ms,
-                    probe.error_count,
-                    probe.success_count,
-                );
-                result.push(upc);
-            }
-        } else {
-            for upstream_address in self.upstream_addresses() {
-                let upc = UpstreamProbeConfiguration::build_default(&UpstreamAddress::FQDN(
-                    upstream_address,
-                ));
-                result.push(upc);
-            }
+    pub fn probes(&self) -> Vec<Probe> {
+        match self.probes.as_ref() {
+            Some(probe_settings) => probe_settings.iter().map(|probe| probe.clone()).collect(),
+            None => self
+                .upstream_addresses()
+                .iter()
+                .map(|upstream_addr| Probe::default(upstream_addr.as_str()))
+                .collect(),
         }
-
-        result
     }
 
     pub fn routes(&self) -> Vec<crate::model::route::Route> {
@@ -115,12 +101,23 @@ pub struct Route {
     pub upstreams: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Probe {
     pub upstream_address: String,
     pub poll_interval_ms: u64,
     pub error_count: u64,
     pub success_count: u64,
+}
+
+impl Probe {
+    pub fn default(upstream_address: &str) -> Self {
+        Probe {
+            upstream_address: upstream_address.to_string(),
+            poll_interval_ms: 1000,
+            error_count: 5,
+            success_count: 5,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
