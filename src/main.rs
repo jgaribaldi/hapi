@@ -33,7 +33,6 @@ async fn main() -> Result<(), HapiError> {
 
     let context = build_context_from_test_routes();
     log::info!("{:?}", context);
-    let upstreams_to_probe = context.get_all_upstreams();
 
     let thread_safe_context = Arc::new(Mutex::new(context));
     let gqh_thread_safe_context = thread_safe_context.clone();
@@ -48,10 +47,9 @@ async fn main() -> Result<(), HapiError> {
     });
 
     // send commands to probe current upstreams
-    for ups in upstreams_to_probe.iter() {
-        let upc = UpstreamProbeConfiguration::build_default(ups);
-        match main_cmd_tx.send(Command::Probe { upc }).await {
-            Ok(_) => log::debug!("Sent Probe command to probe handler for address {:?}", ups),
+    for upc in settings.probes().iter() {
+        match main_cmd_tx.send(Command::Probe { upc: upc.clone() }).await {
+            Ok(_) => log::debug!("Sent Probe command to probe handler for address {:?}", upc),
             Err(error) => log::error!("Error sending message to probe handler {:?}", error),
         }
     }

@@ -1,6 +1,8 @@
-use crate::HapiError;
+use crate::model::upstream::UpstreamAddress;
+use crate::{HapiError, UpstreamProbeConfiguration};
 use serde::Deserialize;
 use serde::Serialize;
+use std::collections::HashSet;
 use std::fs::File;
 use std::io::BufReader;
 use std::net::SocketAddr;
@@ -29,6 +31,41 @@ impl HapiSettings {
 
         let result: SocketAddr = full_ip_address.parse()?;
         Ok(result)
+    }
+
+    pub fn probes(&self) -> Vec<UpstreamProbeConfiguration> {
+        let mut result = Vec::new();
+
+        if let Some(probe_settings) = self.probes.as_ref() {
+            for probe in probe_settings.iter() {
+                let upc = UpstreamProbeConfiguration::build(
+                    &UpstreamAddress::FQDN(probe.upstream_address.clone()),
+                    probe.poll_interval_ms,
+                    probe.error_count,
+                    probe.success_count,
+                );
+                result.push(upc);
+            }
+        } else {
+            for upstream_address in self.upstream_addresses() {
+                let upc = UpstreamProbeConfiguration::build_default(&UpstreamAddress::FQDN(
+                    upstream_address,
+                ));
+                result.push(upc);
+            }
+        }
+
+        result
+    }
+
+    fn upstream_addresses(&self) -> Vec<String> {
+        let mut result = HashSet::new();
+        for route in self.routes.iter() {
+            for upstream in route.upstreams.iter() {
+                result.insert(upstream.clone());
+            }
+        }
+        result.into_iter().collect()
     }
 }
 
