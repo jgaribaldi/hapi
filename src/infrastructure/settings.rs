@@ -10,6 +10,7 @@ use std::path::Path;
 pub struct HapiSettings {
     pub ip_address: String,
     pub port: u16,
+    pub routes: Vec<Route>,
 }
 
 impl HapiSettings {
@@ -28,4 +29,25 @@ impl HapiSettings {
         let result: SocketAddr = full_ip_address.parse()?;
         Ok(result)
     }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Route {
+    pub name: String,
+    pub methods: Vec<String>,
+    pub paths: Vec<String>,
+    pub upstreams: Vec<Upstream>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Upstream {
+    pub address: String,
+    pub probe: Probe,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Probe {
+    pub poll_interval_ms: u64,
+    pub error_count: u64,
+    pub success_count: u64,
 }

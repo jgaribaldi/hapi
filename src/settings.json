@@ -1,4 +1,52 @@
 {
   "ip_address": "127.0.0.1",
-  "port": 3000
+  "port": 3000,
+  "routes": [
+    {
+      "name": "Test route 1",
+      "methods": ["GET", "POST"],
+      "paths": ["/test"],
+      "upstreams": [
+        {
+          "address": "localhost:8001",
+          "probe": {
+            "poll_interval_ms": 1000,
+            "error_count": 5,
+            "success_count": 5
+          }
+        },
+        {
+          "address": "localhost:8002",
+          "probe": {
+            "poll_interval_ms": 1000,
+            "error_count": 5,
+            "success_count": 5
+          }
+        }
+      ]
+    },
+    {
+      "name": "Test route 2",
+      "methods": ["GET", "POST"],
+      "paths": ["/test2"],
+      "upstreams": [
+        {
+          "address": "localhost:8001",
+          "probe": {
+            "poll_interval_ms": 1000,
+            "error_count": 5,
+            "success_count": 5
+          }
+        },
+        {
+          "address": "localhost:8002",
+          "probe": {
+            "poll_interval_ms": 1000,
+            "error_count": 5,
+            "success_count": 5
+          }
+        }
+      ]
+    }
+  ]
 }
