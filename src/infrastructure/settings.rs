@@ -11,6 +11,7 @@ pub struct HapiSettings {
     pub ip_address: String,
     pub port: u16,
     pub routes: Vec<Route>,
+    pub probes: Vec<Probe>,
 }
 
 impl HapiSettings {
@@ -37,17 +38,12 @@ pub struct Route {
     pub methods: Vec<String>,
     pub paths: Vec<String>,
     pub strategy: Strategy,
-    pub upstreams: Vec<Upstream>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Upstream {
-    pub address: String,
-    pub probe: Probe,
+    pub upstreams: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Probe {
+    pub upstream_address: String,
     pub poll_interval_ms: u64,
     pub error_count: u64,
     pub success_count: u64,

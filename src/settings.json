@@ -7,48 +7,28 @@
       "methods": ["GET", "POST"],
       "paths": ["/test"],
       "strategy": "RoundRobin",
-      "upstreams": [
-        {
-          "address": "localhost:8001",
-          "probe": {
-            "poll_interval_ms": 1000,
-            "error_count": 5,
-            "success_count": 5
-          }
-        },
-        {
-          "address": "localhost:8002",
-          "probe": {
-            "poll_interval_ms": 1000,
-            "error_count": 5,
-            "success_count": 5
-          }
-        }
-      ]
+      "upstreams": ["localhost:8001", "localhost:8002"]
     },
     {
       "name": "Test route 2",
       "methods": ["GET", "POST"],
       "paths": ["/test2"],
       "strategy": "AlwaysFirst",
-      "upstreams": [
-        {
-          "address": "localhost:8001",
-          "probe": {
-            "poll_interval_ms": 1000,
-            "error_count": 5,
-            "success_count": 5
-          }
-        },
-        {
-          "address": "localhost:8002",
-          "probe": {
-            "poll_interval_ms": 1000,
-            "error_count": 5,
-            "success_count": 5
-          }
-        }
-      ]
+      "upstreams": ["localhost:8001", "localhost:8002"]
+    }
+  ],
+  "probes": [
+    {
+      "upstream_address": "localhost:8001",
+      "poll_interval_ms": 1000,
+      "error_count": 5,
+      "success_count": 5
+    },
+    {
+      "upstream_address": "localhost:8002",
+      "poll_interval_ms": 1000,
+      "error_count": 5,
+      "success_count": 5
     }
   ]
 }
