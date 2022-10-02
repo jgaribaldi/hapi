@@ -6,6 +6,7 @@
       "name": "Test route 1",
       "methods": ["GET", "POST"],
       "paths": ["/test"],
+      "strategy": "RoundRobin",
       "upstreams": [
         {
           "address": "localhost:8001",
@@ -29,6 +30,7 @@
       "name": "Test route 2",
       "methods": ["GET", "POST"],
       "paths": ["/test2"],
+      "strategy": "AlwaysFirst",
       "upstreams": [
         {
           "address": "localhost:8001",

@@ -36,6 +36,7 @@ pub struct Route {
     pub name: String,
     pub methods: Vec<String>,
     pub paths: Vec<String>,
+    pub strategy: Strategy,
     pub upstreams: Vec<Upstream>,
 }
 
@@ -50,4 +51,10 @@ pub struct Probe {
     pub poll_interval_ms: u64,
     pub error_count: u64,
     pub success_count: u64,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum Strategy {
+    AlwaysFirst,
+    RoundRobin,
 }
