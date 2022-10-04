@@ -14,8 +14,8 @@ use crate::{AlwaysFirstUpstreamStrategy, HapiError, RoundRobinUpstreamStrategy, 
 pub struct HapiSettings {
     pub ip_address: String,
     pub port: u16,
-    pub routes: Vec<Route>,
-    pub probes: Option<Vec<Probe>>,
+    routes: Vec<Route>,
+    probes: Option<Vec<Probe>>,
 }
 
 impl HapiSettings {
