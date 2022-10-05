@@ -50,7 +50,11 @@ impl Upstream {
 pub trait UpstreamStrategy {
     fn next(&mut self, upstreams: &[&Upstream]) -> usize;
     fn clone_box(&self) -> Box<dyn UpstreamStrategy + Send>;
-    fn get_type_name(&self) -> String;
+    fn get_type_name(&self) -> String {
+        let full_type_name = std::any::type_name::<Self>();
+        let parts = full_type_name.split("::");
+        parts.last().unwrap().to_string()
+    }
 }
 
 impl Debug for (dyn UpstreamStrategy + Send + 'static) {
@@ -75,12 +79,6 @@ impl UpstreamStrategy for AlwaysFirstUpstreamStrategy {
 
     fn clone_box(&self) -> Box<dyn UpstreamStrategy + Send> {
         Box::new(self.clone())
-    }
-
-    fn get_type_name(&self) -> String {
-        let full_type_name = std::any::type_name::<Self>();
-        let parts = full_type_name.split("::");
-        parts.last().unwrap().to_string()
     }
 }
 
@@ -112,12 +110,6 @@ impl UpstreamStrategy for RoundRobinUpstreamStrategy {
 
     fn clone_box(&self) -> Box<dyn UpstreamStrategy + Send> {
         Box::new(self.clone())
-    }
-
-    fn get_type_name(&self) -> String {
-        let full_type_name = std::any::type_name::<Self>();
-        let parts = full_type_name.split("::");
-        parts.last().unwrap().to_string()
     }
 }
 
