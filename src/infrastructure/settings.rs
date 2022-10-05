@@ -35,6 +35,16 @@ impl HapiSettings {
         Ok(result)
     }
 
+    pub fn api_socket_address(&self) -> Result<SocketAddr, HapiError> {
+        let api_port = self.port + 1;
+        let mut full_ip_address = String::from(self.ip_address.as_str());
+        full_ip_address.push_str(":");
+        full_ip_address.push_str(api_port.to_string().as_str());
+
+        let result: SocketAddr = full_ip_address.parse()?;
+        Ok(result)
+    }
+
     pub fn probes(&self) -> Vec<Probe> {
         match self.probes.as_ref() {
             Some(probe_settings) => {

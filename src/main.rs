@@ -9,7 +9,7 @@ use tokio::sync::mpsc;
 use tokio::sync::mpsc::Sender;
 
 use crate::errors::HapiError;
-use crate::infrastructure::processor;
+use crate::infrastructure::{api, processor};
 use crate::infrastructure::settings::HapiSettings;
 use crate::infrastructure::stats::Stats;
 use crate::infrastructure::upstream_probe::{
@@ -72,9 +72,19 @@ async fn main() -> Result<(), HapiError> {
             gqh_thread_safe_context,
         ));
 
-    if let Err(e) = server.await {
-        log::error!("server error: {}", e);
-    }
+    let make_api_service = make_service_fn(move |_conn| {
+        let service = service_fn(move |request| {
+            api::process_request(request)
+        });
+        async move { Ok::<_, HapiError>(service) }
+    });
+
+    let api_addr = settings.api_socket_address()?;
+    let api_server = Server::bind(&api_addr)
+        .serve(make_api_service)
+        .with_graceful_shutdown(api_graceful_quit_handler());
+
+    let _ret = futures_util::future::join(server, api_server).await;
     Ok(())
 }
 
@@ -106,6 +116,12 @@ async fn graceful_quit_handler(
         }
     }
     log::info!("Shutting down Hapi. Bye :-)")
+}
+
+async fn api_graceful_quit_handler() {
+    tokio::signal::ctrl_c()
+        .await
+        .expect("Could not install graceful quit signal handler");
 }
 
 fn build_context_from_settings(settings: &HapiSettings) -> Context {
