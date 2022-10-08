@@ -35,6 +35,7 @@ async fn main() -> Result<(), HapiError> {
     let thread_safe_context = Arc::new(Mutex::new(context));
     let gqh_thread_safe_context = thread_safe_context.clone();
     let uph_thread_safe_context = thread_safe_context.clone();
+    let api_thread_safe_context = thread_safe_context.clone();
 
     let thread_safe_stats = Arc::new(Mutex::new(Stats::build()));
     let (main_cmd_tx, probe_handler_cmd_rx) = mpsc::channel(1024 * size_of::<Command>());
@@ -73,8 +74,10 @@ async fn main() -> Result<(), HapiError> {
         ));
 
     let make_api_service = make_service_fn(move |_conn| {
+        let context = api_thread_safe_context.clone();
         let service = service_fn(move |request| {
-            api::process_request(request)
+            let context = context.clone();
+            api::process_request(context, request)
         });
         async move { Ok::<_, HapiError>(service) }
     });
