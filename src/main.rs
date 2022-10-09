@@ -2,19 +2,17 @@ use std::mem::size_of;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 
-use hyper::{Body, Request, Server};
 use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};
+use hyper::{Body, Request, Server};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::Sender;
 
 use crate::errors::HapiError;
-use crate::infrastructure::{api, processor};
 use crate::infrastructure::settings::HapiSettings;
 use crate::infrastructure::stats::Stats;
-use crate::infrastructure::upstream_probe::{
-    Command, upstream_probe_handler,
-};
+use crate::infrastructure::upstream_probe::{upstream_probe_handler, Command};
+use crate::infrastructure::{api, processor};
 use crate::model::context::Context;
 use crate::model::upstream::{AlwaysFirstUpstreamStrategy, RoundRobinUpstreamStrategy, Upstream};
 
@@ -47,8 +45,16 @@ async fn main() -> Result<(), HapiError> {
 
     // send commands to probe current upstreams
     for probe in settings.probes().iter() {
-        match main_cmd_tx.send(Command::Probe { probe: probe.clone() }).await {
-            Ok(_) => log::debug!("Sent Probe command to probe handler for address {:?}", probe.upstream_address),
+        match main_cmd_tx
+            .send(Command::Probe {
+                probe: probe.clone(),
+            })
+            .await
+        {
+            Ok(_) => log::debug!(
+                "Sent Probe command to probe handler for address {:?}",
+                probe.upstream_address
+            ),
             Err(error) => log::error!("Error sending message to probe handler {:?}", error),
         }
     }
@@ -111,7 +117,9 @@ async fn graceful_quit_handler(
 
     for ups in upstream_addresses.iter() {
         match gqh_cmd_tx
-            .send(Command::StopProbe { upstream_address: ups.to_string() })
+            .send(Command::StopProbe {
+                upstream_address: ups.to_string(),
+            })
             .await
         {
             Ok(_) => log::debug!("Sent Probe command to probe handler for address {:?}", ups),

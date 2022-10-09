@@ -8,8 +8,8 @@ use std::path::Path;
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::{AlwaysFirstUpstreamStrategy, HapiError, RoundRobinUpstreamStrategy, Upstream};
 use crate::infrastructure::serializable_model::{Probe, Route, Strategy};
+use crate::{AlwaysFirstUpstreamStrategy, HapiError, RoundRobinUpstreamStrategy, Upstream};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct HapiSettings {

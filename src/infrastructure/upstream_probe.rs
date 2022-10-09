@@ -7,9 +7,9 @@ use tokio::net::TcpStream;
 use tokio::sync::mpsc::Receiver;
 use tokio::time::sleep;
 
+use crate::infrastructure::serializable_model::Probe;
 use crate::model::upstream::UpstreamAddress;
 use crate::Context;
-use crate::infrastructure::serializable_model::Probe;
 
 #[derive(Debug)]
 pub enum Command {
