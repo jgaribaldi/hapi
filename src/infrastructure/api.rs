@@ -1,7 +1,7 @@
+use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
 use hyper::{Body, header, Method, Request, Response};
-use regex::Regex;
 
 use crate::{Context, HapiError};
 use crate::model::upstream::UpstreamAddress;
@@ -12,15 +12,17 @@ pub async fn process_request(
 ) -> Result<Response<Body>, HapiError> {
     log::debug!("Received: {:?}", &request);
 
-    let route_regex = Regex::new("^/routes$|^/routes/$|^/routes/(.*)$").unwrap();
-    let upstream_regex = Regex::new("^/upstreams$|^/upstreams/$|^/upstreams/(.*)$").unwrap();
+    let path = request.uri().path().to_owned();
+    let path_parts: Vec<&str> = path.split("/").collect();
 
-    let response = match (request.uri().path(), request.method()) {
-        (path, &Method::GET) if route_regex.is_match(path) => {
+    let resource = ApiResource::from_str(path_parts[1]).unwrap();
+
+    let response = match (resource, request.method()) {
+        (ApiResource::Route, &Method::GET) => {
             let json = get_all_routes_json(context);
             json_response(json)
         }
-        (path, &Method::GET) if upstream_regex.is_match(path) => {
+        (ApiResource::Upstream, &Method::GET) => {
             let json = get_all_upstreams_json(context);
             json_response(json)
         }
@@ -62,4 +64,24 @@ fn json_response(json: String) -> Response<Body> {
         .status(200)
         .body(Body::from(json))
         .unwrap()
+}
+
+enum ApiResource {
+    Route,
+    Upstream,
+    Stats,
+    Unknown,
+}
+
+impl FromStr for ApiResource {
+    type Err = ();
+
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        match input {
+            "routes" => Ok(ApiResource::Route),
+            "upstreams" => Ok(ApiResource::Upstream),
+            "stats" => Ok(ApiResource::Stats),
+            _ => Ok(ApiResource::Unknown),
+        }
+    }
 }
