@@ -179,19 +179,16 @@ fn wrap_string_in_regexp(string: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use crate::model::route::Route;
-    use crate::model::upstream::{
-        AlwaysFirstUpstreamStrategy, RoundRobinUpstreamStrategy, Upstream, UpstreamAddress,
-        UpstreamStrategy,
-    };
     use crate::Context;
+    use crate::model::route::Route;
+    use crate::model::upstream::{Upstream, UpstreamAddress, UpstreamStrategy};
 
     #[test]
     fn should_create_context_from_routes() {
         // given:
         let routes = vec![
-            sample_route_1(Box::new(AlwaysFirstUpstreamStrategy::build())),
-            sample_route_2(Box::new(RoundRobinUpstreamStrategy::build(0))),
+            sample_route_1(UpstreamStrategy::AlwaysFirst),
+            sample_route_2(UpstreamStrategy::RoundRobin { index: 0 }),
         ];
 
         // when:
@@ -205,8 +202,8 @@ mod tests {
     fn should_perform_upstream_lookup() {
         // given:
         let routes = vec![
-            sample_route_1(Box::new(AlwaysFirstUpstreamStrategy::build())),
-            sample_route_2(Box::new(RoundRobinUpstreamStrategy::build(0))),
+            sample_route_1(UpstreamStrategy::AlwaysFirst),
+            sample_route_2(UpstreamStrategy::RoundRobin { index: 0 }),
         ];
         let mut context = Context::build_from_routes(routes);
 
@@ -221,8 +218,8 @@ mod tests {
     fn should_match_route_by_path_regexp() {
         // given:
         let routes = vec![
-            sample_route_2(Box::new(AlwaysFirstUpstreamStrategy::build())),
-            sample_route_3(Box::new(AlwaysFirstUpstreamStrategy::build())),
+            sample_route_2(UpstreamStrategy::AlwaysFirst),
+            sample_route_3(UpstreamStrategy::AlwaysFirst),
         ];
         let mut context = Context::build_from_routes(routes);
 
@@ -240,8 +237,8 @@ mod tests {
     fn should_match_route_by_method_regexp() {
         // given:
         let routes = vec![
-            sample_route_2(Box::new(AlwaysFirstUpstreamStrategy::build())),
-            sample_route_4(Box::new(AlwaysFirstUpstreamStrategy::build())),
+            sample_route_2(UpstreamStrategy::AlwaysFirst),
+            sample_route_4(UpstreamStrategy::AlwaysFirst),
         ];
         let mut context = Context::build_from_routes(routes);
 
@@ -258,9 +255,7 @@ mod tests {
     #[test]
     fn should_not_find_route_for_non_exact_match() {
         // given:
-        let routes = vec![sample_route_5(Box::new(
-            AlwaysFirstUpstreamStrategy::build(),
-        ))];
+        let routes = vec![sample_route_5(UpstreamStrategy::AlwaysFirst)];
         let mut context = Context::build_from_routes(routes);
 
         // when:
@@ -273,7 +268,7 @@ mod tests {
     #[test]
     fn should_not_find_route_if_all_upstreams_are_disabled() {
         // given:
-        let mut route = sample_route_1(Box::new(RoundRobinUpstreamStrategy::build(0)));
+        let mut route = sample_route_1(UpstreamStrategy::RoundRobin { index: 0 });
         for upstream in route.upstreams.iter_mut() {
             upstream.disable()
         }
@@ -291,8 +286,8 @@ mod tests {
     fn should_disable_upstream() {
         // given:
         let routes = vec![
-            sample_route_5(Box::new(AlwaysFirstUpstreamStrategy::build())),
-            sample_route_6(Box::new(AlwaysFirstUpstreamStrategy::build())),
+            sample_route_5(UpstreamStrategy::AlwaysFirst),
+            sample_route_6(UpstreamStrategy::AlwaysFirst),
         ];
         let mut context = Context::build_from_routes(routes);
         let ups_addr = UpstreamAddress::FQDN(String::from("upstream21"));
@@ -314,8 +309,8 @@ mod tests {
     fn should_enable_upstream() {
         // given:
         let routes = vec![
-            sample_route_7(Box::new(AlwaysFirstUpstreamStrategy::build())),
-            sample_route_8(Box::new(AlwaysFirstUpstreamStrategy::build())),
+            sample_route_7(UpstreamStrategy::AlwaysFirst),
+            sample_route_8(UpstreamStrategy::AlwaysFirst),
         ];
         let mut context = Context::build_from_routes(routes);
         let ups_addr = UpstreamAddress::FQDN(String::from("upstream21"));
@@ -336,8 +331,8 @@ mod tests {
     #[test]
     fn should_add_route() {
         // given:
-        let route1 = sample_route_1(Box::new(AlwaysFirstUpstreamStrategy::build()));
-        let route2 = sample_route_2(Box::new(AlwaysFirstUpstreamStrategy::build()));
+        let route1 = sample_route_1(UpstreamStrategy::AlwaysFirst);
+        let route2 = sample_route_2(UpstreamStrategy::AlwaysFirst);
         let mut context = Context::build_from_routes(vec![route1]);
 
         // when:
@@ -359,9 +354,9 @@ mod tests {
     #[test]
     fn should_remove_route() {
         // given:
-        let route1 = sample_route_1(Box::new(AlwaysFirstUpstreamStrategy::build()));
-        let route2 = sample_route_2(Box::new(AlwaysFirstUpstreamStrategy::build()));
-        let route3 = sample_route_1(Box::new(AlwaysFirstUpstreamStrategy::build()));
+        let route1 = sample_route_1(UpstreamStrategy::AlwaysFirst);
+        let route2 = sample_route_2(UpstreamStrategy::AlwaysFirst);
+        let route3 = sample_route_1(UpstreamStrategy::AlwaysFirst);
         let mut context = Context::build_from_routes(vec![route1, route2]);
 
         // when:
@@ -380,7 +375,7 @@ mod tests {
         );
     }
 
-    fn sample_route_1(strategy: Box<dyn UpstreamStrategy + Send>) -> Route {
+    fn sample_route_1(strategy: UpstreamStrategy) -> Route {
         Route::build(
             String::from("route1"),
             vec![String::from("GET")],
@@ -393,7 +388,7 @@ mod tests {
         )
     }
 
-    fn sample_route_2(strategy: Box<dyn UpstreamStrategy + Send>) -> Route {
+    fn sample_route_2(strategy: UpstreamStrategy) -> Route {
         Route::build(
             String::from("route2"),
             vec![String::from("GET")],
@@ -406,7 +401,7 @@ mod tests {
         )
     }
 
-    fn sample_route_3(strategy: Box<dyn UpstreamStrategy + Send>) -> Route {
+    fn sample_route_3(strategy: UpstreamStrategy) -> Route {
         Route::build(
             String::from("route3"),
             vec![String::from("GET")],
@@ -419,7 +414,7 @@ mod tests {
         )
     }
 
-    fn sample_route_4(strategy: Box<dyn UpstreamStrategy + Send>) -> Route {
+    fn sample_route_4(strategy: UpstreamStrategy) -> Route {
         Route::build(
             String::from("route4"),
             vec![String::from("^.+$")],
@@ -432,7 +427,7 @@ mod tests {
         )
     }
 
-    fn sample_route_5(strategy: Box<dyn UpstreamStrategy + Send>) -> Route {
+    fn sample_route_5(strategy: UpstreamStrategy) -> Route {
         Route::build(
             String::from("route5"),
             vec![String::from("GET")],
@@ -445,7 +440,7 @@ mod tests {
         )
     }
 
-    fn sample_route_6(strategy: Box<dyn UpstreamStrategy + Send>) -> Route {
+    fn sample_route_6(strategy: UpstreamStrategy) -> Route {
         Route::build(
             String::from("route6"),
             vec![String::from("GET")],
@@ -458,7 +453,7 @@ mod tests {
         )
     }
 
-    fn sample_route_7(strategy: Box<dyn UpstreamStrategy + Send>) -> Route {
+    fn sample_route_7(strategy: UpstreamStrategy) -> Route {
         let upstream1 = Upstream::build_from_fqdn("upstream20");
         let mut upstream2 = Upstream::build_from_fqdn("upstream21");
         upstream2.enabled = false;
@@ -471,7 +466,7 @@ mod tests {
         )
     }
 
-    fn sample_route_8(strategy: Box<dyn UpstreamStrategy + Send>) -> Route {
+    fn sample_route_8(strategy: UpstreamStrategy) -> Route {
         let mut upstream1 = Upstream::build_from_fqdn("upstream21");
         upstream1.enabled = false;
         let upstream2 = Upstream::build_from_fqdn("upstream22");

@@ -8,8 +8,8 @@ use std::path::Path;
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::infrastructure::serializable_model::{Probe, Route, Strategy};
-use crate::{AlwaysFirstUpstreamStrategy, HapiError, RoundRobinUpstreamStrategy, Upstream};
+use crate::HapiError;
+use crate::infrastructure::serializable_model::{Probe, Route};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct HapiSettings {
@@ -80,31 +80,8 @@ impl HapiSettings {
         let mut result = Vec::new();
 
         for r in self.routes.iter() {
-            let name = r.name.clone();
-            let methods = r.methods.clone();
-            let paths = r.paths.clone();
-            let upstreams: Vec<Upstream> = r
-                .upstreams
-                .iter()
-                .map(|ups_addr| Upstream::build_from_fqdn(ups_addr.as_str()))
-                .collect();
-
-            match r.strategy {
-                Strategy::AlwaysFirst => result.push(crate::model::route::Route::build(
-                    name,
-                    methods,
-                    paths,
-                    upstreams,
-                    Box::new(AlwaysFirstUpstreamStrategy::build()),
-                )),
-                Strategy::RoundRobin => result.push(crate::model::route::Route::build(
-                    name,
-                    methods,
-                    paths,
-                    upstreams,
-                    Box::new(RoundRobinUpstreamStrategy::build(0)),
-                )),
-            }
+            let route: crate::model::route::Route = r.clone().into();
+            result.push(route);
         }
 
         result

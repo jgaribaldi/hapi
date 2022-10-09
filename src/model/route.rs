@@ -1,13 +1,12 @@
-use crate::model::upstream::{UpstreamAddress, UpstreamStrategy};
-use crate::Upstream;
+use crate::model::upstream::{Upstream, UpstreamAddress, UpstreamStrategy};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Route {
     pub name: String,
     pub methods: Vec<String>,
     pub paths: Vec<String>,
     pub upstreams: Vec<Upstream>,
-    pub strategy: Box<dyn UpstreamStrategy + Send>,
+    pub strategy: UpstreamStrategy,
 }
 
 impl Route {
@@ -16,7 +15,7 @@ impl Route {
         methods: Vec<String>,
         paths: Vec<String>,
         upstreams: Vec<Upstream>,
-        strategy: Box<dyn UpstreamStrategy + Send>,
+        strategy: UpstreamStrategy,
     ) -> Self {
         Route {
             name,
@@ -65,39 +64,10 @@ impl Route {
     }
 }
 
-impl PartialEq for Route {
-    fn eq(&self, other: &Self) -> bool {
-        if self.name == other.name
-            && self.methods == other.methods
-            && self.paths == other.paths
-            && self.upstreams == other.upstreams
-            && self.strategy.get_type_name() == other.strategy.get_type_name()
-        {
-            true
-        } else {
-            false
-        }
-    }
-
-    fn ne(&self, other: &Self) -> bool {
-        if self.name != other.name
-            || self.methods != other.methods
-            || self.paths != other.paths
-            || self.upstreams != other.upstreams
-            || self.strategy.get_type_name() != other.strategy.get_type_name()
-        {
-            true
-        } else {
-            false
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use crate::model::route::Route;
-    use crate::model::upstream::UpstreamAddress;
-    use crate::{RoundRobinUpstreamStrategy, Upstream};
+    use crate::model::upstream::{Upstream, UpstreamAddress, UpstreamStrategy};
 
     #[test]
     fn should_enable_upstream() {
@@ -146,7 +116,7 @@ mod tests {
     }
 
     fn sample_route() -> Route {
-        let strategy = RoundRobinUpstreamStrategy::build(0);
+        let strategy = UpstreamStrategy::RoundRobin { index: 0 };
         let upstream1 = Upstream::build_from_fqdn("upstream1");
         let mut upstream2 = Upstream::build_from_fqdn("upstream2");
         upstream2.disable();
@@ -157,7 +127,7 @@ mod tests {
             vec![String::from("GET")],
             vec![String::from("uri1"), String::from("uri2")],
             vec![upstream1, upstream2, upstream3],
-            Box::new(strategy),
+            strategy,
         )
     }
 }

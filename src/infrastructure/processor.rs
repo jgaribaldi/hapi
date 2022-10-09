@@ -1,13 +1,13 @@
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
-use hyper::header::HOST;
 use hyper::{Body, Client, HeaderMap, Request, Response, Uri};
+use hyper::header::HOST;
 
+use crate::{Context, HapiError};
 use crate::infrastructure::stats;
 use crate::infrastructure::stats::Stats;
 use crate::model::upstream::UpstreamAddress;
-use crate::{Context, HapiError};
 
 pub async fn process_request(
     context: Arc<Mutex<Context>>,

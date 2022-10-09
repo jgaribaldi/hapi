@@ -1,9 +1,9 @@
-use crate::model::upstream::UpstreamStrategy;
-use crate::{AlwaysFirstUpstreamStrategy, RoundRobinUpstreamStrategy, Upstream};
 use serde::Deserialize;
 use serde::Serialize;
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+use crate::model::upstream::{Upstream, UpstreamStrategy};
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct Route {
     pub name: String,
     pub methods: Vec<String>,
@@ -43,14 +43,14 @@ impl From<Route> for crate::model::route::Route {
                 serializable_route.methods.clone(),
                 serializable_route.paths.clone(),
                 upstreams,
-                Box::new(AlwaysFirstUpstreamStrategy::build()),
+                UpstreamStrategy::AlwaysFirst,
             ),
             Strategy::RoundRobin => crate::model::route::Route::build(
                 serializable_route.name.clone(),
                 serializable_route.methods.clone(),
                 serializable_route.paths.clone(),
                 upstreams,
-                Box::new(RoundRobinUpstreamStrategy::build(0)),
+                UpstreamStrategy::RoundRobin { index: 0 },
             ),
         }
     }
@@ -75,19 +75,17 @@ impl Probe {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub enum Strategy {
     AlwaysFirst,
     RoundRobin,
 }
 
-impl From<Box<dyn UpstreamStrategy + Send>> for Strategy {
-    fn from(upstream_strategy: Box<dyn UpstreamStrategy + Send>) -> Self {
-        // TODO: this is horrible, find a way to do a better match
-        if upstream_strategy.get_type_name() == String::from("AlwaysFirstUpstreamStrategy") {
-            Strategy::AlwaysFirst
-        } else {
-            Strategy::RoundRobin
+impl From<UpstreamStrategy> for Strategy {
+    fn from(upstream_strategy: UpstreamStrategy) -> Self {
+        match upstream_strategy {
+            UpstreamStrategy::AlwaysFirst => Strategy::AlwaysFirst,
+            UpstreamStrategy::RoundRobin { index: _ }  => Strategy::RoundRobin,
         }
     }
 }
@@ -95,7 +93,7 @@ impl From<Box<dyn UpstreamStrategy + Send>> for Strategy {
 #[cfg(test)]
 mod tests {
     use crate::infrastructure::serializable_model::{Route, Strategy};
-    use crate::{AlwaysFirstUpstreamStrategy, Upstream};
+    use crate::model::upstream::{Upstream, UpstreamStrategy};
 
     #[test]
     fn should_convert_route_to_serializable_route() {
@@ -130,7 +128,7 @@ mod tests {
                 Upstream::build_from_fqdn("upstream1"),
                 Upstream::build_from_fqdn("upstream2"),
             ],
-            Box::new(AlwaysFirstUpstreamStrategy::build()),
+            UpstreamStrategy::AlwaysFirst,
         )
     }
 

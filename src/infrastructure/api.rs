@@ -1,10 +1,10 @@
 use std::sync::{Arc, Mutex};
 
-use hyper::{header, Body, Method, Request, Response};
+use hyper::{Body, header, Method, Request, Response};
 use regex::Regex;
 
-use crate::model::upstream::UpstreamAddress;
 use crate::{Context, HapiError};
+use crate::model::upstream::UpstreamAddress;
 
 pub async fn process_request(
     context: Arc<Mutex<Context>>,

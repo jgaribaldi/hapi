@@ -2,19 +2,18 @@ use std::mem::size_of;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 
+use hyper::{Body, Request, Server};
 use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};
-use hyper::{Body, Request, Server};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::Sender;
 
 use crate::errors::HapiError;
+use crate::infrastructure::{api, processor};
 use crate::infrastructure::settings::HapiSettings;
 use crate::infrastructure::stats::Stats;
-use crate::infrastructure::upstream_probe::{upstream_probe_handler, Command};
-use crate::infrastructure::{api, processor};
+use crate::infrastructure::upstream_probe::{Command, upstream_probe_handler};
 use crate::model::context::Context;
-use crate::model::upstream::{AlwaysFirstUpstreamStrategy, RoundRobinUpstreamStrategy, Upstream};
 
 mod errors;
 mod infrastructure;
