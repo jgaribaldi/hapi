@@ -2,6 +2,7 @@ use crate::model::upstream::{Upstream, UpstreamAddress, UpstreamStrategy};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Route {
+    pub id: String,
     pub name: String,
     pub methods: Vec<String>,
     pub paths: Vec<String>,
@@ -11,6 +12,7 @@ pub struct Route {
 
 impl Route {
     pub fn build(
+        id: String,
         name: String,
         methods: Vec<String>,
         paths: Vec<String>,
@@ -18,6 +20,7 @@ impl Route {
         strategy: UpstreamStrategy,
     ) -> Self {
         Route {
+            id,
             name,
             methods,
             paths,
@@ -123,6 +126,7 @@ mod tests {
         let upstream3 = Upstream::build_from_fqdn("upstream3");
 
         Route::build(
+            String::from("id1"),
             String::from("route1"),
             vec![String::from("GET")],
             vec![String::from("uri1"), String::from("uri2")],

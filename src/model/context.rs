@@ -11,12 +11,14 @@ pub struct Context {
     routes: Vec<Route>,
     routing_table: HashMap<(String, String), usize>, // (path, method) => route index
     upstreams: HashSet<UpstreamAddress>,
+    route_index: HashMap<String, usize>, // route id => route index
 }
 
 impl Context {
     pub fn build_from_routes(routes: Vec<Route>) -> Self {
         let mut routing_table: HashMap<(String, String), usize> = HashMap::new();
         let mut upstreams = HashSet::new();
+        let mut route_index = HashMap::new();
 
         for (index, route) in routes.iter().enumerate() {
             for path in route.paths.iter() {
@@ -27,12 +29,14 @@ impl Context {
             for upstream in route.upstreams.iter() {
                 upstreams.insert(upstream.address.clone());
             }
+            route_index.insert(route.id.clone(), index);
         }
 
         Context {
             routes,
             routing_table,
             upstreams,
+            route_index,
         }
     }
 
@@ -41,6 +45,7 @@ impl Context {
             routes: Vec::new(),
             routing_table: HashMap::new(),
             upstreams: HashSet::new(),
+            route_index: HashMap::new(),
         }
     }
 
@@ -377,6 +382,7 @@ mod tests {
 
     fn sample_route_1(strategy: UpstreamStrategy) -> Route {
         Route::build(
+            String::from("id1"),
             String::from("route1"),
             vec![String::from("GET")],
             vec![String::from("uri1"), String::from("uri2")],
@@ -390,6 +396,7 @@ mod tests {
 
     fn sample_route_2(strategy: UpstreamStrategy) -> Route {
         Route::build(
+            String::from("id2"),
             String::from("route2"),
             vec![String::from("GET")],
             vec![String::from("uri2"), String::from("uri3")],
@@ -403,6 +410,7 @@ mod tests {
 
     fn sample_route_3(strategy: UpstreamStrategy) -> Route {
         Route::build(
+            String::from("id3"),
             String::from("route3"),
             vec![String::from("GET")],
             vec![String::from("^uri.*$")],
@@ -416,6 +424,7 @@ mod tests {
 
     fn sample_route_4(strategy: UpstreamStrategy) -> Route {
         Route::build(
+            String::from("id4"),
             String::from("route4"),
             vec![String::from("^.+$")],
             vec![String::from("uri4")],
@@ -429,6 +438,7 @@ mod tests {
 
     fn sample_route_5(strategy: UpstreamStrategy) -> Route {
         Route::build(
+            String::from("id5"),
             String::from("route5"),
             vec![String::from("GET")],
             vec![String::from("uri")],
@@ -442,6 +452,7 @@ mod tests {
 
     fn sample_route_6(strategy: UpstreamStrategy) -> Route {
         Route::build(
+            String::from("id6"),
             String::from("route6"),
             vec![String::from("GET")],
             vec![String::from("uri2")],
@@ -458,6 +469,7 @@ mod tests {
         let mut upstream2 = Upstream::build_from_fqdn("upstream21");
         upstream2.enabled = false;
         Route::build(
+            String::from("id7"),
             String::from("route7"),
             vec![String::from("GET")],
             vec![String::from("uri")],
@@ -471,6 +483,7 @@ mod tests {
         upstream1.enabled = false;
         let upstream2 = Upstream::build_from_fqdn("upstream22");
         Route::build(
+            String::from("id8"),
             String::from("route8"),
             vec![String::from("GET")],
             vec![String::from("uri2")],

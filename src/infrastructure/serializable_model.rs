@@ -5,6 +5,7 @@ use crate::model::upstream::{Upstream, UpstreamStrategy};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct Route {
+    pub id: String,
     pub name: String,
     pub methods: Vec<String>,
     pub paths: Vec<String>,
@@ -21,6 +22,7 @@ impl From<crate::model::route::Route> for Route {
             .collect();
 
         Route {
+            id: route.id.clone(),
             name: route.name.clone(),
             methods: route.methods.clone(),
             paths: route.paths.clone(),
@@ -39,6 +41,7 @@ impl From<Route> for crate::model::route::Route {
 
         match serializable_route.strategy {
             Strategy::AlwaysFirst => crate::model::route::Route::build(
+                serializable_route.id.clone(),
                 serializable_route.name.clone(),
                 serializable_route.methods.clone(),
                 serializable_route.paths.clone(),
@@ -46,6 +49,7 @@ impl From<Route> for crate::model::route::Route {
                 UpstreamStrategy::AlwaysFirst,
             ),
             Strategy::RoundRobin => crate::model::route::Route::build(
+                serializable_route.id.clone(),
                 serializable_route.name.clone(),
                 serializable_route.methods.clone(),
                 serializable_route.paths.clone(),
@@ -121,6 +125,7 @@ mod tests {
 
     fn sample_route() -> crate::model::route::Route {
         crate::model::route::Route::build(
+            String::from("id1"),
             String::from("route1"),
             vec![String::from("GET")],
             vec![String::from("uri1"), String::from("uri2")],
@@ -134,6 +139,7 @@ mod tests {
 
     fn sample_serializable_route() -> Route {
         Route {
+            id: String::from("id1"),
             name: String::from("route1"),
             methods: vec![String::from("GET")],
             paths: vec![String::from("uri1"), String::from("uri2")],
