@@ -12,6 +12,8 @@ pub enum HapiError {
     IoError(std::io::Error),
     SerdeError(serde_json::Error),
     AddressParseError(AddrParseError),
+    RouteAlreadyExists,
+    RouteNotExists,
 }
 
 impl Display for HapiError {
@@ -24,7 +26,8 @@ impl Display for HapiError {
             HapiError::SerdeError(serde_error) => write!(f, "{:?}", serde_error),
             HapiError::AddressParseError(address_parse_error) => {
                 write!(f, "{:?}", address_parse_error)
-            }
+            },
+            HapiError::RouteAlreadyExists | HapiError::RouteNotExists => todo!(),
         }
     }
 }

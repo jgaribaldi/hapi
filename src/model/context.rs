@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 
 use regex::Regex;
+use crate::HapiError;
 
 use crate::model::route::Route;
 use crate::model::upstream::UpstreamAddress;
@@ -71,26 +72,32 @@ impl Context {
     /// Adds the given route to this context. Returns an optional array of upstream addresses
     /// indicating which upstream addresses were added to this context because they didn't exist
     /// before.
-    pub fn add_route(&mut self, route: Route) -> Option<Vec<UpstreamAddress>> {
-        let mut added_upstreams = Vec::new();
-        for path in route.paths.iter() {
-            for method in route.methods.iter() {
-                self.routing_table
-                    .insert((path.clone(), method.clone()), self.routes.len());
+    pub fn add_route(&mut self, route: Route) -> Result<Option<Vec<UpstreamAddress>>, HapiError> {
+        if !self.route_index.contains_key(&route.id) {
+            let mut added_upstreams = Vec::new();
+            for path in route.paths.iter() {
+                for method in route.methods.iter() {
+                    self.routing_table
+                        .insert((path.clone(), method.clone()), self.routes.len());
+                }
             }
-        }
-        for upstream in route.upstreams.iter() {
-            if self.upstreams.insert(upstream.address.clone()) == true {
-                added_upstreams.push(upstream.address.clone());
+            for upstream in route.upstreams.iter() {
+                if self.upstreams.insert(upstream.address.clone()) == true {
+                    added_upstreams.push(upstream.address.clone());
+                }
             }
-        }
-        self.routes.push(route);
+            self.route_index.insert(route.id.clone(), self.routes.len());
+            self.routes.push(route);
 
-        if added_upstreams.len() > 0 {
-            Some(added_upstreams)
+            if added_upstreams.len() > 0 {
+                Ok(Some(added_upstreams))
+            } else {
+                Ok(None)
+            }
         } else {
-            None
+            Err(HapiError::RouteAlreadyExists)
         }
+
     }
 
     /// Removes the given route from this context. Returns an optional array of upstream addresses
@@ -341,7 +348,7 @@ mod tests {
         let mut context = Context::build_from_routes(vec![route1]);
 
         // when:
-        let added_routes = context.add_route(route2).unwrap();
+        let added_routes = context.add_route(route2).unwrap().unwrap();
 
         // then:
         assert_eq!(2, context.routes.len());
@@ -354,6 +361,24 @@ mod tests {
             UpstreamAddress::FQDN("upstream4".to_string()),
             added_routes[1]
         );
+        assert_eq!(2, context.route_index.len());
+    }
+
+    #[test]
+    fn should_not_add_route_if_it_exists() {
+        // given:
+        let route1 = sample_route_1(UpstreamStrategy::AlwaysFirst);
+        let route2 = route1.clone();
+        let mut context = Context::build_from_routes(vec![route1]);
+
+        // when:
+        let add_result = context.add_route(route2);
+
+        // then:
+        assert_eq!(true, add_result.is_err());
+        assert_eq!(1, context.routes.len());
+        assert_eq!(2, context.routing_table.len());
+        assert_eq!(1, context.route_index.len());
     }
 
     #[test]
