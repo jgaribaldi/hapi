@@ -71,7 +71,7 @@ impl Context {
 
     /// Adds the given route to this context. Returns an optional array of upstream addresses
     /// indicating which upstream addresses were added to this context because they didn't exist
-    /// before.
+    /// before, or error if the given route already exists in the context
     pub fn add_route(&mut self, route: Route) -> Result<Option<Vec<UpstreamAddress>>, HapiError> {
         if !self.route_index.contains_key(&route.id) {
             let mut added_upstreams = Vec::new();
