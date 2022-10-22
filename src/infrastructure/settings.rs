@@ -8,8 +8,8 @@ use std::path::Path;
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::HapiError;
 use crate::infrastructure::serializable_model::{Probe, Route};
+use crate::HapiError;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct HapiSettings {

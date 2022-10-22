@@ -85,7 +85,7 @@ impl From<UpstreamStrategy> for Strategy {
     fn from(upstream_strategy: UpstreamStrategy) -> Self {
         match upstream_strategy {
             UpstreamStrategy::AlwaysFirst => Strategy::AlwaysFirst,
-            UpstreamStrategy::RoundRobin { index: _ }  => Strategy::RoundRobin,
+            UpstreamStrategy::RoundRobin { index: _ } => Strategy::RoundRobin,
         }
     }
 }

@@ -55,7 +55,9 @@ impl UpstreamStrategy {
     pub fn next(&mut self, upstreams: &[&Upstream]) -> usize {
         match self {
             UpstreamStrategy::AlwaysFirst => 0,
-            UpstreamStrategy::RoundRobin { index: current_index_value } => {
+            UpstreamStrategy::RoundRobin {
+                index: current_index_value,
+            } => {
                 let current_index = *current_index_value;
                 *current_index_value = (*current_index_value + 1) % upstreams.len();
 

@@ -2,17 +2,17 @@ use std::mem::size_of;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 
-use hyper::{Body, Request, Server};
 use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};
+use hyper::{Body, Request, Server};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::Sender;
 
 use crate::errors::HapiError;
-use crate::infrastructure::{api, processor};
 use crate::infrastructure::settings::HapiSettings;
 use crate::infrastructure::stats::Stats;
-use crate::infrastructure::upstream_probe::{Command, upstream_probe_handler};
+use crate::infrastructure::upstream_probe::{upstream_probe_handler, Command};
+use crate::infrastructure::{api, processor};
 use crate::model::context::Context;
 
 mod errors;
@@ -35,6 +35,7 @@ async fn main() -> Result<(), HapiError> {
     let api_thread_safe_context = thread_safe_context.clone();
 
     let thread_safe_stats = Arc::new(Mutex::new(Stats::build()));
+    let api_thread_safe_stats = thread_safe_stats.clone();
     let (main_cmd_tx, probe_handler_cmd_rx) = mpsc::channel(1024 * size_of::<Command>());
 
     // spawn upstream probe handler thread
@@ -80,9 +81,11 @@ async fn main() -> Result<(), HapiError> {
 
     let make_api_service = make_service_fn(move |_conn| {
         let context = api_thread_safe_context.clone();
+        let stats = api_thread_safe_stats.clone();
         let service = service_fn(move |request| {
             let context = context.clone();
-            api::process_request(context, request)
+            let stats = stats.clone();
+            api::process_request(context, stats, request)
         });
         async move { Ok::<_, HapiError>(service) }
     });

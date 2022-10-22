@@ -1,13 +1,16 @@
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
-use hyper::{Body, header, Method, Request, Response};
+use hyper::{header, Body, Method, Request, Response};
+use serde::Deserialize;
+use serde::Serialize;
 
-use crate::{Context, HapiError};
 use crate::model::upstream::UpstreamAddress;
+use crate::{Context, HapiError, Stats};
 
 pub async fn process_request(
     context: Arc<Mutex<Context>>,
+    stats: Arc<Mutex<Stats>>,
     request: Request<Body>,
 ) -> Result<Response<Body>, HapiError> {
     log::debug!("Received: {:?}", &request);
@@ -24,6 +27,10 @@ pub async fn process_request(
         }
         (ApiResource::Upstream, &Method::GET) => {
             let json = get_all_upstreams_json(context);
+            json_response(json)
+        }
+        (ApiResource::Stats, &Method::GET) => {
+            let json = get_all_stats_json(stats);
             json_response(json)
         }
         _ => Response::builder().status(404).body(Body::empty()).unwrap(),
@@ -58,6 +65,22 @@ fn get_all_routes_json(context: Arc<Mutex<Context>>) -> String {
     serde_json::to_string(&serializable_routes).unwrap()
 }
 
+fn get_all_stats_json(stats: Arc<Mutex<Stats>>) -> String {
+    let sts = get_all_stats(stats);
+
+    let mut serializable_stats = Vec::new();
+    for s in sts {
+        serializable_stats.push(SerializableStats::from(s));
+    }
+
+    serde_json::to_string(&serializable_stats).unwrap()
+}
+
+fn get_all_stats(stats: Arc<Mutex<Stats>>) -> Vec<(String, String, String, String, u64)> {
+    let sts = stats.lock().unwrap();
+    sts.get_all()
+}
+
 fn json_response(json: String) -> Response<Body> {
     Response::builder()
         .header(header::CONTENT_TYPE, "application/json")
@@ -82,6 +105,27 @@ impl FromStr for ApiResource {
             "upstreams" => Ok(ApiResource::Upstream),
             "stats" => Ok(ApiResource::Stats),
             _ => Ok(ApiResource::Unknown),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+struct SerializableStats {
+    client: String,
+    method: String,
+    path: String,
+    upstream: String,
+    count: u64,
+}
+
+impl From<(String, String, String, String, u64)> for SerializableStats {
+    fn from(stat: (String, String, String, String, u64)) -> Self {
+        SerializableStats {
+            client: stat.0,
+            method: stat.1,
+            path: stat.2,
+            upstream: stat.3,
+            count: stat.4,
         }
     }
 }

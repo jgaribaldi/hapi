@@ -179,9 +179,9 @@ fn wrap_string_in_regexp(string: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use crate::Context;
     use crate::model::route::Route;
     use crate::model::upstream::{Upstream, UpstreamAddress, UpstreamStrategy};
+    use crate::Context;
 
     #[test]
     fn should_create_context_from_routes() {

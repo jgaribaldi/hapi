@@ -64,10 +64,20 @@ impl Stats {
             })
     }
 
-    pub fn print_stats(&self) {
+    pub fn get_all(&self) -> Vec<(String, String, String, String, u64)> {
+        let mut result = Vec::new();
+
         for entry in self.counter.iter() {
-            println!("({:?}) => {}", entry.0, entry.1)
+            result.push((
+                entry.0 .0.clone(),
+                entry.0 .1.clone(),
+                entry.0 .2.clone(),
+                entry.0 .3.clone(),
+                *entry.1,
+            ))
         }
+
+        result
     }
 }
 
