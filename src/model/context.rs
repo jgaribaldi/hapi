@@ -1,8 +1,8 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 
-use regex::Regex;
 use crate::HapiError;
+use regex::Regex;
 
 use crate::model::route::Route;
 use crate::model::upstream::UpstreamAddress;
@@ -97,45 +97,44 @@ impl Context {
         } else {
             Err(HapiError::RouteAlreadyExists)
         }
-
     }
 
     /// Removes the given route from this context. Returns an optional array of upstream addresses
     /// indicating which upstream addresses were removed from this context, as no other route
-    /// included such addresses.
-    pub fn remove_route(&mut self, route: Route) -> Option<Vec<UpstreamAddress>> {
-        let mut deleted_upstreams = Vec::new();
-        let mut index_to_remove = self.routes.len() + 1;
-        for (idx, r) in self.routes.iter().enumerate() {
-            if *r == route {
-                index_to_remove = idx;
-                break;
+    /// included such addresses, or error if the route id doesn't exist in the context
+    pub fn remove_route(
+        &mut self,
+        route_id: &str,
+    ) -> Result<Option<Vec<UpstreamAddress>>, HapiError> {
+        if self.route_index.contains_key(route_id) {
+            let mut deleted_upstreams = Vec::new();
+            let index_to_remove = self.route_index.remove(route_id).unwrap();
+
+            let mut keys_to_remove = Vec::new();
+            for (key, value) in self.routing_table.iter() {
+                if *value == index_to_remove {
+                    keys_to_remove.push(key.clone());
+                }
             }
-        }
 
-        let mut keys_to_remove = Vec::new();
-        for (key, value) in self.routing_table.iter() {
-            if *value == index_to_remove {
-                keys_to_remove.push(key.clone());
+            for key_to_remove in keys_to_remove {
+                self.routing_table.remove(&key_to_remove);
             }
-        }
 
-        for key_to_remove in keys_to_remove {
-            self.routing_table.remove(&key_to_remove);
-        }
-
-        self.routes.remove(index_to_remove);
-
-        for ups in route.upstreams {
-            if self.upstreams.remove(&ups.address) == true {
-                deleted_upstreams.push(ups.address.clone());
+            let route = self.routes.remove(index_to_remove);
+            for ups in route.upstreams {
+                if self.upstreams.remove(&ups.address) == true {
+                    deleted_upstreams.push(ups.address.clone());
+                }
             }
-        }
 
-        if deleted_upstreams.len() > 0 {
-            Some(deleted_upstreams)
+            if deleted_upstreams.len() > 0 {
+                Ok(Some(deleted_upstreams))
+            } else {
+                Ok(None)
+            }
         } else {
-            None
+            Err(HapiError::RouteNotExists)
         }
     }
 
@@ -386,11 +385,14 @@ mod tests {
         // given:
         let route1 = sample_route_1(UpstreamStrategy::AlwaysFirst);
         let route2 = sample_route_2(UpstreamStrategy::AlwaysFirst);
-        let route3 = sample_route_1(UpstreamStrategy::AlwaysFirst);
+        let route_id_to_remove = route1.id.clone();
         let mut context = Context::build_from_routes(vec![route1, route2]);
 
         // when:
-        let removed_routes = context.remove_route(route3).unwrap();
+        let removed_routes = context
+            .remove_route(route_id_to_remove.as_str())
+            .unwrap()
+            .unwrap();
 
         // then:
         assert_eq!(1, context.routes.len());
@@ -403,6 +405,23 @@ mod tests {
             UpstreamAddress::FQDN("upstream2".to_string()),
             removed_routes[1]
         );
+        assert_eq!(1, context.route_index.len());
+    }
+
+    #[test]
+    fn should_not_remove_route_if_not_exists() {
+        // given:
+        let route1 = sample_route_1(UpstreamStrategy::AlwaysFirst);
+        let route2 = sample_route_2(UpstreamStrategy::AlwaysFirst);
+        let mut context = Context::build_from_routes(vec![route1]);
+
+        // when:
+        let remove_route_result = context.remove_route(route2.id.as_str());
+
+        // then:
+        assert_eq!(true, remove_route_result.is_err());
+        assert_eq!(1, context.routes.len());
+        assert_eq!(1, context.route_index.len());
     }
 
     fn sample_route_1(strategy: UpstreamStrategy) -> Route {
