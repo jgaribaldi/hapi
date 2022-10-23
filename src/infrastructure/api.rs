@@ -37,12 +37,12 @@ pub async fn process_request(
         (ApiResource::Route, &Method::DELETE) => {
             match delete_route(context, path_parts[2]) {
                 Ok(deleted_upstreams) => {
-                    if let Some(du) = deleted_upstreams {
+                    if let Some(_du) = deleted_upstreams {
                         // TODO: remove upstream probe for the deleted upstreams
                     }
                     ok_response()
                 }
-                Err(e) => not_found_response()
+                Err(_e) => not_found_response()
             }
         }
         (ApiResource::Upstream, &Method::GET) => {
