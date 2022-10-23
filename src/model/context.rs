@@ -89,32 +89,8 @@ impl Context {
         route_id: &str,
     ) -> Result<Option<Vec<UpstreamAddress>>, HapiError> {
         if self.route_index.contains_key(route_id) {
-            let mut deleted_upstreams = Vec::new();
-            let index_to_remove = self.route_index.remove(route_id).unwrap();
-
-            let mut keys_to_remove = Vec::new();
-            for (key, value) in self.routing_table.iter() {
-                if *value == index_to_remove {
-                    keys_to_remove.push(key.clone());
-                }
-            }
-
-            for key_to_remove in keys_to_remove {
-                self.routing_table.remove(&key_to_remove);
-            }
-
-            let route = self.routes.remove(index_to_remove);
-            for ups in route.upstreams {
-                if self.upstreams.remove(&ups.address) == true {
-                    deleted_upstreams.push(ups.address.clone());
-                }
-            }
-
-            if deleted_upstreams.len() > 0 {
-                Ok(Some(deleted_upstreams))
-            } else {
-                Ok(None)
-            }
+            let result = self.do_remove_route(route_id);
+            Ok(result)
         } else {
             Err(HapiError::RouteNotExists)
         }
@@ -179,6 +155,35 @@ impl Context {
 
         if added_upstreams.len() > 0 {
             Some(added_upstreams)
+        } else {
+            None
+        }
+    }
+
+    fn do_remove_route(&mut self, route_id: &str) -> Option<Vec<UpstreamAddress>> {
+        let mut deleted_upstreams = Vec::new();
+        let index_to_remove = self.route_index.remove(route_id).unwrap();
+
+        let mut keys_to_remove = Vec::new();
+        for (key, value) in self.routing_table.iter() {
+            if *value == index_to_remove {
+                keys_to_remove.push(key.clone());
+            }
+        }
+
+        for key_to_remove in keys_to_remove {
+            self.routing_table.remove(&key_to_remove);
+        }
+
+        let route = self.routes.remove(index_to_remove);
+        for ups in route.upstreams {
+            if self.upstreams.remove(&ups.address) == true {
+                deleted_upstreams.push(ups.address.clone());
+            }
+        }
+
+        if deleted_upstreams.len() > 0 {
+            Some(deleted_upstreams)
         } else {
             None
         }
