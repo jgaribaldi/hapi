@@ -112,6 +112,11 @@ impl Context {
         result
     }
 
+    pub fn get_route_by_id(&self, route_id: &str) -> Option<&Route> {
+        self.route_index.get(route_id)
+            .and_then(|index| self.routes.get(*index))
+    }
+
     fn find_routing_table_index(&self, path: &str, method: &str) -> Option<usize> {
         // attempt exact match by (path, method) key
         let exact_key = (path.to_string(), method.to_string());

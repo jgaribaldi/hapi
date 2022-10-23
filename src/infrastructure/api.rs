@@ -7,6 +7,7 @@ use serde::Serialize;
 
 use crate::model::upstream::UpstreamAddress;
 use crate::{Context, HapiError, Stats};
+use crate::infrastructure::serializable_model::Route;
 
 pub async fn process_request(
     context: Arc<Mutex<Context>>,
@@ -22,8 +23,16 @@ pub async fn process_request(
 
     let response = match (resource, request.method()) {
         (ApiResource::Route, &Method::GET) => {
-            let json = get_all_routes_json(context);
-            json_response(json)
+            if path_parts.len() > 2 {
+                // a route ID was given
+                match get_route_by_id_json(context, path_parts[2]) {
+                    Some(json_route) => json_response(json_route),
+                    None => not_found_response()
+                }
+            } else {
+                let json = get_all_routes_json(context);
+                json_response(json)
+            }
         }
         (ApiResource::Upstream, &Method::GET) => {
             let json = get_all_upstreams_json(context);
@@ -33,7 +42,7 @@ pub async fn process_request(
             let json = get_all_stats_json(stats);
             json_response(json)
         }
-        _ => Response::builder().status(404).body(Body::empty()).unwrap(),
+        _ => not_found_response(),
     };
 
     log::debug!("Response: {:?}", &response);
@@ -81,12 +90,27 @@ fn get_all_stats(stats: Arc<Mutex<Stats>>) -> Vec<(String, String, String, Strin
     sts.get_all()
 }
 
+fn get_route_by_id_json(context: Arc<Mutex<Context>>, route_id: &str) -> Option<String> {
+    get_route_by_id(context, route_id)
+        .map(|serializable_route| serde_json::to_string(&serializable_route).unwrap())
+}
+
+fn get_route_by_id(context: Arc<Mutex<Context>>, route_id: &str) -> Option<Route> {
+    let ctx = context.lock().unwrap();
+    ctx.get_route_by_id(route_id)
+        .map(|route| Route::from(route.clone()))
+}
+
 fn json_response(json: String) -> Response<Body> {
     Response::builder()
         .header(header::CONTENT_TYPE, "application/json")
         .status(200)
         .body(Body::from(json))
         .unwrap()
+}
+
+fn not_found_response() -> Response<Body> {
+    Response::builder().status(404).body(Body::empty()).unwrap()
 }
 
 enum ApiResource {
