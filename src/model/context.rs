@@ -74,26 +74,8 @@ impl Context {
     /// before, or error if the given route already exists in the context
     pub fn add_route(&mut self, route: Route) -> Result<Option<Vec<UpstreamAddress>>, HapiError> {
         if !self.route_index.contains_key(&route.id) {
-            let mut added_upstreams = Vec::new();
-            for path in route.paths.iter() {
-                for method in route.methods.iter() {
-                    self.routing_table
-                        .insert((path.clone(), method.clone()), self.routes.len());
-                }
-            }
-            for upstream in route.upstreams.iter() {
-                if self.upstreams.insert(upstream.address.clone()) == true {
-                    added_upstreams.push(upstream.address.clone());
-                }
-            }
-            self.route_index.insert(route.id.clone(), self.routes.len());
-            self.routes.push(route);
-
-            if added_upstreams.len() > 0 {
-                Ok(Some(added_upstreams))
-            } else {
-                Ok(None)
-            }
+            let result = self.do_add_route(route);
+            Ok(result)
         } else {
             Err(HapiError::RouteAlreadyExists)
         }
@@ -177,6 +159,29 @@ impl Context {
                 }
                 result
             })
+    }
+
+    fn do_add_route(&mut self, route: Route) -> Option<Vec<UpstreamAddress>> {
+        let mut added_upstreams = Vec::new();
+        for path in route.paths.iter() {
+            for method in route.methods.iter() {
+                self.routing_table
+                    .insert((path.clone(), method.clone()), self.routes.len());
+            }
+        }
+        for upstream in route.upstreams.iter() {
+            if self.upstreams.insert(upstream.address.clone()) == true {
+                added_upstreams.push(upstream.address.clone());
+            }
+        }
+        self.route_index.insert(route.id.clone(), self.routes.len());
+        self.routes.push(route);
+
+        if added_upstreams.len() > 0 {
+            Some(added_upstreams)
+        } else {
+            None
+        }
     }
 }
 

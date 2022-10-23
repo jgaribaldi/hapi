@@ -140,7 +140,7 @@ async fn api_graceful_quit_handler() {
 fn build_context_from_settings(settings: &HapiSettings) -> Context {
     let mut context = Context::build_empty();
     for r in settings.routes() {
-        context.add_route(r);
+        context.add_route(r).expect("Error adding route");
     }
     context
 }
