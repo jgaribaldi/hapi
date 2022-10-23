@@ -36,13 +36,8 @@ pub async fn process_request(
         }
         (ApiResource::Route, &Method::DELETE) => {
             match delete_route(context, path_parts[2]) {
-                Ok(deleted_upstreams) => {
-                    if let Some(_du) = deleted_upstreams {
-                        // TODO: remove upstream probe for the deleted upstreams
-                    }
-                    ok_response()
-                }
-                Err(_e) => not_found_response()
+                Ok(_) => ok_response(),
+                Err(_) => not_found_response()
             }
         }
         (ApiResource::Upstream, &Method::GET) => {
@@ -112,7 +107,7 @@ fn get_route_by_id(context: Arc<Mutex<Context>>, route_id: &str) -> Option<Route
         .map(|route| Route::from(route.clone()))
 }
 
-fn delete_route(context: Arc<Mutex<Context>>, route_id: &str) -> Result<Option<Vec<UpstreamAddress>>, HapiError> {
+fn delete_route(context: Arc<Mutex<Context>>, route_id: &str) -> Result<(), HapiError> {
     let mut ctx = context.lock().unwrap();
     ctx.remove_route(route_id)
 }

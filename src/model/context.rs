@@ -16,30 +16,6 @@ pub struct Context {
 }
 
 impl Context {
-    pub fn build_from_routes(routes: Vec<Route>) -> Self {
-        let mut routing_table: HashMap<(String, String), usize> = HashMap::new();
-        let mut upstreams = HashSet::new();
-        let mut route_index = HashMap::new();
-
-        for (index, route) in routes.iter().enumerate() {
-            for path in route.paths.iter() {
-                for method in route.methods.iter() {
-                    routing_table.insert((path.to_string(), method.to_string()), index);
-                }
-            }
-            for upstream in route.upstreams.iter() {
-                upstreams.insert(upstream.address.clone());
-            }
-            route_index.insert(route.id.clone(), index);
-        }
-
-        Context {
-            routes,
-            routing_table,
-            upstreams,
-            route_index,
-        }
-    }
 
     pub fn build_empty() -> Self {
         Context {
@@ -72,10 +48,10 @@ impl Context {
     /// Adds the given route to this context. Returns an optional array of upstream addresses
     /// indicating which upstream addresses were added to this context because they didn't exist
     /// before, or error if the given route already exists in the context
-    pub fn add_route(&mut self, route: Route) -> Result<Option<Vec<UpstreamAddress>>, HapiError> {
+    pub fn add_route(&mut self, route: Route) -> Result<(), HapiError> {
         if !self.route_index.contains_key(&route.id) {
-            let result = self.do_add_route(route);
-            Ok(result)
+            self.do_add_route(route);
+            Ok(())
         } else {
             Err(HapiError::RouteAlreadyExists)
         }
@@ -84,13 +60,10 @@ impl Context {
     /// Removes the given route from this context. Returns an optional array of upstream addresses
     /// indicating which upstream addresses were removed from this context, as no other route
     /// included such addresses, or error if the route id doesn't exist in the context
-    pub fn remove_route(
-        &mut self,
-        route_id: &str,
-    ) -> Result<Option<Vec<UpstreamAddress>>, HapiError> {
+    pub fn remove_route(&mut self, route_id: &str) -> Result<(), HapiError> {
         if self.route_index.contains_key(route_id) {
-            let result = self.do_remove_route(route_id);
-            Ok(result)
+            self.do_remove_route(route_id);
+            Ok(())
         } else {
             Err(HapiError::RouteNotExists)
         }
@@ -142,55 +115,41 @@ impl Context {
             })
     }
 
-    fn do_add_route(&mut self, route: Route) -> Option<Vec<UpstreamAddress>> {
-        let mut added_upstreams = Vec::new();
-        for path in route.paths.iter() {
-            for method in route.methods.iter() {
-                self.routing_table
-                    .insert((path.clone(), method.clone()), self.routes.len());
-            }
-        }
-        for upstream in route.upstreams.iter() {
-            if self.upstreams.insert(upstream.address.clone()) == true {
-                added_upstreams.push(upstream.address.clone());
-            }
-        }
+    fn do_add_route(&mut self, route: Route) {
         self.route_index.insert(route.id.clone(), self.routes.len());
         self.routes.push(route);
 
-        if added_upstreams.len() > 0 {
-            Some(added_upstreams)
-        } else {
-            None
+        self.rebuild_routing_table();
+        self.rebuild_upstreams()
+    }
+
+    fn do_remove_route(&mut self, route_id: &str) {
+        let index_to_remove = self.route_index.remove(route_id).unwrap();
+        self.routes.remove(index_to_remove);
+
+        self.rebuild_routing_table();
+        self.rebuild_upstreams()
+    }
+
+    fn rebuild_routing_table(&mut self) {
+        self.routing_table.clear();
+
+        for (index, route) in self.routes.iter().enumerate() {
+            for path in route.paths.iter() {
+                for method in route.methods.iter() {
+                    self.routing_table.insert((path.clone(), method.clone()), index);
+                }
+            }
         }
     }
 
-    fn do_remove_route(&mut self, route_id: &str) -> Option<Vec<UpstreamAddress>> {
-        let mut deleted_upstreams = Vec::new();
-        let index_to_remove = self.route_index.remove(route_id).unwrap();
+    fn rebuild_upstreams(&mut self) {
+        self.upstreams.clear();
 
-        let mut keys_to_remove = Vec::new();
-        for (key, value) in self.routing_table.iter() {
-            if *value == index_to_remove {
-                keys_to_remove.push(key.clone());
+        for route in self.routes.iter() {
+            for upstream in route.upstreams.iter() {
+                self.upstreams.insert(upstream.address.clone());
             }
-        }
-
-        for key_to_remove in keys_to_remove {
-            self.routing_table.remove(&key_to_remove);
-        }
-
-        let route = self.routes.remove(index_to_remove);
-        for ups in route.upstreams {
-            if self.upstreams.remove(&ups.address) == true {
-                deleted_upstreams.push(ups.address.clone());
-            }
-        }
-
-        if deleted_upstreams.len() > 0 {
-            Some(deleted_upstreams)
-        } else {
-            None
         }
     }
 }
@@ -210,28 +169,11 @@ mod tests {
     use crate::Context;
 
     #[test]
-    fn should_create_context_from_routes() {
-        // given:
-        let routes = vec![
-            sample_route_1(UpstreamStrategy::AlwaysFirst),
-            sample_route_2(UpstreamStrategy::RoundRobin { index: 0 }),
-        ];
-
-        // when:
-        let context = Context::build_from_routes(routes);
-
-        // then:
-        assert_eq!(context.routing_table.len(), 3);
-    }
-
-    #[test]
     fn should_perform_upstream_lookup() {
         // given:
-        let routes = vec![
-            sample_route_1(UpstreamStrategy::AlwaysFirst),
-            sample_route_2(UpstreamStrategy::RoundRobin { index: 0 }),
-        ];
-        let mut context = Context::build_from_routes(routes);
+        let mut context = Context::build_empty();
+        context.add_route(sample_route_1(UpstreamStrategy::AlwaysFirst)).unwrap();
+        context.add_route(sample_route_2(UpstreamStrategy::RoundRobin { index: 0 })).unwrap();
 
         // when:
         let upstream = context.upstream_lookup("uri1", "GET");
@@ -243,11 +185,9 @@ mod tests {
     #[test]
     fn should_match_route_by_path_regexp() {
         // given:
-        let routes = vec![
-            sample_route_2(UpstreamStrategy::AlwaysFirst),
-            sample_route_3(UpstreamStrategy::AlwaysFirst),
-        ];
-        let mut context = Context::build_from_routes(routes);
+        let mut context = Context::build_empty();
+        context.add_route(sample_route_2(UpstreamStrategy::AlwaysFirst)).unwrap();
+        context.add_route(sample_route_3(UpstreamStrategy::AlwaysFirst)).unwrap();
 
         // when:
         let upstream = context.upstream_lookup("uri10", "GET");
@@ -262,11 +202,9 @@ mod tests {
     #[test]
     fn should_match_route_by_method_regexp() {
         // given:
-        let routes = vec![
-            sample_route_2(UpstreamStrategy::AlwaysFirst),
-            sample_route_4(UpstreamStrategy::AlwaysFirst),
-        ];
-        let mut context = Context::build_from_routes(routes);
+        let mut context = Context::build_empty();
+        context.add_route(sample_route_2(UpstreamStrategy::AlwaysFirst)).unwrap();
+        context.add_route(sample_route_4(UpstreamStrategy::AlwaysFirst)).unwrap();
 
         // when:
         let upstream = context.upstream_lookup("uri4", "PATCH");
@@ -281,8 +219,8 @@ mod tests {
     #[test]
     fn should_not_find_route_for_non_exact_match() {
         // given:
-        let routes = vec![sample_route_5(UpstreamStrategy::AlwaysFirst)];
-        let mut context = Context::build_from_routes(routes);
+        let mut context = Context::build_empty();
+        context.add_route(sample_route_5(UpstreamStrategy::AlwaysFirst)).unwrap();
 
         // when:
         let upstream = context.upstream_lookup("uri5", "GET");
@@ -298,8 +236,8 @@ mod tests {
         for upstream in route.upstreams.iter_mut() {
             upstream.disable()
         }
-        let routes = vec![route];
-        let mut context = Context::build_from_routes(routes);
+        let mut context = Context::build_empty();
+        context.add_route(route).unwrap();
 
         // when:
         let upstream = context.upstream_lookup("uri1", "GET");
@@ -311,11 +249,9 @@ mod tests {
     #[test]
     fn should_disable_upstream() {
         // given:
-        let routes = vec![
-            sample_route_5(UpstreamStrategy::AlwaysFirst),
-            sample_route_6(UpstreamStrategy::AlwaysFirst),
-        ];
-        let mut context = Context::build_from_routes(routes);
+        let mut context = Context::build_empty();
+        context.add_route(sample_route_5(UpstreamStrategy::AlwaysFirst)).unwrap();
+        context.add_route(sample_route_6(UpstreamStrategy::AlwaysFirst)).unwrap();
         let ups_addr = UpstreamAddress::FQDN(String::from("upstream21"));
 
         // when:
@@ -334,11 +270,9 @@ mod tests {
     #[test]
     fn should_enable_upstream() {
         // given:
-        let routes = vec![
-            sample_route_7(UpstreamStrategy::AlwaysFirst),
-            sample_route_8(UpstreamStrategy::AlwaysFirst),
-        ];
-        let mut context = Context::build_from_routes(routes);
+        let mut context = Context::build_empty();
+        context.add_route(sample_route_7(UpstreamStrategy::AlwaysFirst)).unwrap();
+        context.add_route(sample_route_8(UpstreamStrategy::AlwaysFirst)).unwrap();
         let ups_addr = UpstreamAddress::FQDN(String::from("upstream21"));
 
         // when:
@@ -359,22 +293,17 @@ mod tests {
         // given:
         let route1 = sample_route_1(UpstreamStrategy::AlwaysFirst);
         let route2 = sample_route_2(UpstreamStrategy::AlwaysFirst);
-        let mut context = Context::build_from_routes(vec![route1]);
+        let mut context = Context::build_empty();
 
         // when:
-        let added_routes = context.add_route(route2).unwrap().unwrap();
+        let add_route_result_1 = context.add_route(route1);
+        let add_route_result_2 = context.add_route(route2);
 
         // then:
+        assert_eq!(true, add_route_result_1.is_ok());
+        assert_eq!(true, add_route_result_2.is_ok());
         assert_eq!(2, context.routes.len());
         assert_eq!(3, context.routing_table.len());
-        assert_eq!(
-            UpstreamAddress::FQDN("upstream3".to_string()),
-            added_routes[0]
-        );
-        assert_eq!(
-            UpstreamAddress::FQDN("upstream4".to_string()),
-            added_routes[1]
-        );
         assert_eq!(2, context.route_index.len());
     }
 
@@ -383,7 +312,8 @@ mod tests {
         // given:
         let route1 = sample_route_1(UpstreamStrategy::AlwaysFirst);
         let route2 = route1.clone();
-        let mut context = Context::build_from_routes(vec![route1]);
+        let mut context = Context::build_empty();
+        context.add_route(route1).unwrap();
 
         // when:
         let add_result = context.add_route(route2);
@@ -401,25 +331,17 @@ mod tests {
         let route1 = sample_route_1(UpstreamStrategy::AlwaysFirst);
         let route2 = sample_route_2(UpstreamStrategy::AlwaysFirst);
         let route_id_to_remove = route1.id.clone();
-        let mut context = Context::build_from_routes(vec![route1, route2]);
+        let mut context = Context::build_empty();
+        context.add_route(route1).unwrap();
+        context.add_route(route2).unwrap();
 
         // when:
-        let removed_routes = context
-            .remove_route(route_id_to_remove.as_str())
-            .unwrap()
-            .unwrap();
+        let remove_result = context.remove_route(route_id_to_remove.as_str());
 
         // then:
+        assert_eq!(true, remove_result.is_ok());
         assert_eq!(1, context.routes.len());
         assert_eq!(2, context.routing_table.len());
-        assert_eq!(
-            UpstreamAddress::FQDN("upstream1".to_string()),
-            removed_routes[0]
-        );
-        assert_eq!(
-            UpstreamAddress::FQDN("upstream2".to_string()),
-            removed_routes[1]
-        );
         assert_eq!(1, context.route_index.len());
     }
 
@@ -428,7 +350,8 @@ mod tests {
         // given:
         let route1 = sample_route_1(UpstreamStrategy::AlwaysFirst);
         let route2 = sample_route_2(UpstreamStrategy::AlwaysFirst);
-        let mut context = Context::build_from_routes(vec![route1]);
+        let mut context = Context::build_empty();
+        context.add_route(route1).unwrap();
 
         // when:
         let remove_route_result = context.remove_route(route2.id.as_str());
