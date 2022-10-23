@@ -27,7 +27,7 @@ async fn main() -> Result<(), HapiError> {
     let settings = HapiSettings::load_from_file("settings.json")?;
     log::info!("Settings {:?}", settings);
 
-    let context = build_context_from_settings(&settings);
+    let context = build_context_from_settings(&settings)?;
 
     let thread_safe_context = Arc::new(Mutex::new(context));
     let gqh_thread_safe_context = thread_safe_context.clone();
@@ -137,10 +137,10 @@ async fn api_graceful_quit_handler() {
         .expect("Could not install graceful quit signal handler");
 }
 
-fn build_context_from_settings(settings: &HapiSettings) -> Context {
+fn build_context_from_settings(settings: &HapiSettings) -> Result<Context, HapiError> {
     let mut context = Context::build_empty();
     for r in settings.routes() {
-        context.add_route(r).expect("Error adding route");
+        context.add_route(r)?;
     }
-    context
+    Ok(context)
 }
