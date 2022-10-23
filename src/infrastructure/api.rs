@@ -34,6 +34,17 @@ pub async fn process_request(
                 json_response(json)
             }
         }
+        (ApiResource::Route, &Method::DELETE) => {
+            match delete_route(context, path_parts[2]) {
+                Ok(deleted_upstreams) => {
+                    if let Some(du) = deleted_upstreams {
+                        // TODO: remove upstream probe for the deleted upstreams
+                    }
+                    ok_response()
+                }
+                Err(e) => not_found_response()
+            }
+        }
         (ApiResource::Upstream, &Method::GET) => {
             let json = get_all_upstreams_json(context);
             json_response(json)
@@ -101,6 +112,11 @@ fn get_route_by_id(context: Arc<Mutex<Context>>, route_id: &str) -> Option<Route
         .map(|route| Route::from(route.clone()))
 }
 
+fn delete_route(context: Arc<Mutex<Context>>, route_id: &str) -> Result<Option<Vec<UpstreamAddress>>, HapiError> {
+    let mut ctx = context.lock().unwrap();
+    ctx.remove_route(route_id)
+}
+
 fn json_response(json: String) -> Response<Body> {
     Response::builder()
         .header(header::CONTENT_TYPE, "application/json")
@@ -111,6 +127,10 @@ fn json_response(json: String) -> Response<Body> {
 
 fn not_found_response() -> Response<Body> {
     Response::builder().status(404).body(Body::empty()).unwrap()
+}
+
+fn ok_response() -> Response<Body> {
+    Response::builder().status(201).body(Body::empty()).unwrap()
 }
 
 enum ApiResource {
