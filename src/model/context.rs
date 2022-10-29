@@ -45,9 +45,8 @@ impl Context {
         }
     }
 
-    /// Adds the given route to this context. Returns an optional array of upstream addresses
-    /// indicating which upstream addresses were added to this context because they didn't exist
-    /// before, or error if the given route already exists in the context
+    /// Adds the given route to this context
+    /// Returns an error if the given route already exists in the context
     pub fn add_route(&mut self, route: Route) -> Result<(), HapiError> {
         if !self.route_index.contains_key(&route.id) {
             self.do_add_route(route);
@@ -57,9 +56,8 @@ impl Context {
         }
     }
 
-    /// Removes the given route from this context. Returns an optional array of upstream addresses
-    /// indicating which upstream addresses were removed from this context, as no other route
-    /// included such addresses, or error if the route id doesn't exist in the context
+    /// Removes the given route from this context
+    /// Returns an error if the route id doesn't exist in the context
     pub fn remove_route(&mut self, route_id: &str) -> Result<(), HapiError> {
         if self.route_index.contains_key(route_id) {
             self.do_remove_route(route_id);
