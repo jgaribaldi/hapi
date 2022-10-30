@@ -4,15 +4,19 @@ use std::sync::{Arc, Mutex};
 use hyper::{header, Body, Method, Request, Response};
 use serde::Deserialize;
 use serde::Serialize;
+use tokio::sync::mpsc::Sender;
 
 use crate::infrastructure::serializable_model::Route;
 use crate::model::upstream::UpstreamAddress;
 use crate::{Context, HapiError, Stats};
+use crate::infrastructure::upstream_probe::Command;
+use crate::infrastructure::upstream_probe::Command::RebuildProbes;
 
 pub async fn process_request(
     context: Arc<Mutex<Context>>,
     stats: Arc<Mutex<Stats>>,
     request: Request<Body>,
+    cmd_tx: Sender<Command>,
 ) -> Result<Response<Body>, HapiError> {
     log::debug!("Received: {:?}", &request);
 
@@ -35,7 +39,13 @@ pub async fn process_request(
             }
         }
         (ApiResource::Route, &Method::DELETE) => match delete_route(context, path_parts[2]) {
-            Ok(_) => ok_response(),
+            Ok(_) => {
+                match cmd_tx.send(RebuildProbes).await {
+                    Ok(_) => log::debug!("Sent RebuildProbes command to probe handler"),
+                    Err(e) => log::error!("Error sending RebuildProbes command to probe handler {:?}", e),
+                }
+                ok_response()
+            },
             Err(_) => not_found_response(),
         },
         (ApiResource::Upstream, &Method::GET) => {

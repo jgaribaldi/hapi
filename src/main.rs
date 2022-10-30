@@ -67,10 +67,11 @@ async fn main() -> Result<(), HapiError> {
     let make_api_service = make_service_fn(move |_conn| {
         let context = api_thread_safe_context.clone();
         let stats = api_thread_safe_stats.clone();
+        let main_cmd_tx = main_cmd_tx.clone();
         let service = service_fn(move |request| {
             let context = context.clone();
             let stats = stats.clone();
-            api::process_request(context, stats, request)
+            api::process_request(context, stats, request, main_cmd_tx.clone())
         });
         async move { Ok::<_, HapiError>(service) }
     });
