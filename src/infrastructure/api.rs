@@ -51,6 +51,21 @@ pub async fn process_request(
             }
             Err(_) => not_found_response(),
         },
+        (ApiResource::Route, &Method::POST) => {
+            match hyper::body::to_bytes(request.into_body()).await {
+                Ok(bytes) => {
+                    let route: Route = serde_json::from_slice(bytes.to_vec().as_slice()).unwrap();
+                    log::debug!("Route received {:?}", route);
+                    add_route(context, route).unwrap();
+                    match cmd_tx.send(RebuildProbes).await {
+                        Ok(_) => log::debug!("Sent RebuildProbes command to probe handler"),
+                        Err(e) => log::error!("Error sending RebuildProbes command to probe handler {:?}", e),
+                    }
+                }
+                Err(e) => {}
+            }
+            ok_response()
+        },
         (ApiResource::Upstream, &Method::GET) => {
             let json = get_all_upstreams_json(context);
             json_response(json)
@@ -121,6 +136,12 @@ fn get_route_by_id(context: Arc<Mutex<Context>>, route_id: &str) -> Option<Route
 fn delete_route(context: Arc<Mutex<Context>>, route_id: &str) -> Result<(), HapiError> {
     let mut ctx = context.lock().unwrap();
     ctx.remove_route(route_id)
+}
+
+fn add_route(context: Arc<Mutex<Context>>, route_to_add: Route) -> Result<(), HapiError> {
+    let mut ctx = context.lock().unwrap();
+    let r = crate::model::route::Route::from(route_to_add);
+    ctx.add_route(r)
 }
 
 fn json_response(json: String) -> Response<Body> {
