@@ -30,7 +30,6 @@ async fn main() -> Result<(), HapiError> {
     let context = build_context_from_settings(&settings)?;
 
     let thread_safe_context = Arc::new(Mutex::new(context));
-    let gqh_thread_safe_context = thread_safe_context.clone();
     let uph_thread_safe_context = thread_safe_context.clone();
     let api_thread_safe_context = thread_safe_context.clone();
 
@@ -38,25 +37,14 @@ async fn main() -> Result<(), HapiError> {
     let api_thread_safe_stats = thread_safe_stats.clone();
     let (main_cmd_tx, probe_handler_cmd_rx) = mpsc::channel(1024 * size_of::<Command>());
 
-    // spawn upstream probe handler thread
+    // spawn upstream probe handler thread and send command to start probing
     tokio::spawn(async move {
         upstream_probe_handler(probe_handler_cmd_rx, uph_thread_safe_context).await;
     });
 
-    // send commands to probe current upstreams
-    for probe in settings.probes().iter() {
-        match main_cmd_tx
-            .send(Command::Probe {
-                probe: probe.clone(),
-            })
-            .await
-        {
-            Ok(_) => log::debug!(
-                "Sent Probe command to probe handler for address {:?}",
-                probe.upstream_address
-            ),
-            Err(error) => log::error!("Error sending message to probe handler {:?}", error),
-        }
+    match main_cmd_tx.send(Command::RebuildProbes).await {
+        Ok(_) => log::debug!("Sent RebuildProbes command to probe handler"),
+        Err(e) => log::error!("Error sending message to probe handler {:?}", e),
     }
 
     let make_service = make_service_fn(move |conn: &AddrStream| {
@@ -74,10 +62,7 @@ async fn main() -> Result<(), HapiError> {
     let addr = settings.server_socket_address()?;
     let server = Server::bind(&addr)
         .serve(make_service)
-        .with_graceful_shutdown(graceful_quit_handler(
-            main_cmd_tx.clone(),
-            gqh_thread_safe_context,
-        ));
+        .with_graceful_shutdown(graceful_quit_handler(main_cmd_tx.clone()));
 
     let make_api_service = make_service_fn(move |_conn| {
         let context = api_thread_safe_context.clone();
@@ -103,31 +88,15 @@ fn identify_client(remote_addr: &SocketAddr, _request: &Request<Body>) -> String
     remote_addr.ip().to_string()
 }
 
-async fn graceful_quit_handler(
-    gqh_cmd_tx: Sender<Command>,
-    gqh_thread_safe_context: Arc<Mutex<Context>>,
-) {
+async fn graceful_quit_handler(gqh_cmd_tx: Sender<Command>) {
     tokio::signal::ctrl_c()
         .await
         .expect("Could not install graceful quit signal handler");
 
-    let mut upstream_addresses = Vec::new();
-    {
-        let ctx = gqh_thread_safe_context.lock().unwrap();
-        upstream_addresses.extend_from_slice(&ctx.get_all_upstreams().as_slice());
-    }
-
-    for ups in upstream_addresses.iter() {
-        match gqh_cmd_tx
-            .send(Command::StopProbe {
-                upstream_address: ups.to_string(),
-            })
-            .await
-        {
-            Ok(_) => log::debug!("Sent Probe command to probe handler for address {:?}", ups),
-            Err(error) => log::error!("Error sending message to probe handler {:?}", error),
-        }
-    }
+    match gqh_cmd_tx.send(Command::StopProbes).await {
+        Ok(_) => log::debug!("Sent StopProbes command to probe handler"),
+        Err(e) => log::error!("Error sending StopProbes command to probe handler {:?}", e),
+    };
     log::info!("Shutting down Hapi. Bye :-)")
 }
 

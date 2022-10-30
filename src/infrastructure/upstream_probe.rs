@@ -1,10 +1,11 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use tokio::net::TcpStream;
 use tokio::sync::mpsc::Receiver;
+use tokio::task::JoinHandle;
 use tokio::time::sleep;
 
 use crate::infrastructure::serializable_model::Probe;
@@ -13,8 +14,8 @@ use crate::Context;
 
 #[derive(Debug)]
 pub enum Command {
-    Probe { probe: Probe },
-    StopProbe { upstream_address: String },
+    RebuildProbes,
+    StopProbes,
 }
 
 pub async fn upstream_probe_handler(mut rx: Receiver<Command>, context: Arc<Mutex<Context>>) {
@@ -22,23 +23,107 @@ pub async fn upstream_probe_handler(mut rx: Receiver<Command>, context: Arc<Mute
     while let Some(message) = rx.recv().await {
         log::debug!("Received message {:?}", message);
         match message {
-            Command::Probe { probe } => {
-                if !probing_tasks.contains_key(&probe.upstream_address) {
-                    let ctx = context.clone();
-                    let key = probe.upstream_address.clone();
-                    let handle = tokio::spawn(async { probe_upstream(probe, ctx).await });
-                    probing_tasks.insert(key, handle);
-                }
+            Command::RebuildProbes => {
+                let context = context.clone();
+                do_rebuild_probes(context, &mut probing_tasks);
             }
-            Command::StopProbe { upstream_address } => {
-                if let Some(handle) = probing_tasks.get(&upstream_address) {
-                    log::info!("Shutting down upstream probe for {:?}", &upstream_address);
-                    handle.abort();
-                    probing_tasks.remove(&upstream_address);
-                }
-            }
+            Command::StopProbes => do_stop_probes(&mut probing_tasks),
         }
     }
+}
+
+fn do_rebuild_probes(
+    context: Arc<Mutex<Context>>,
+    probing_tasks: &mut HashMap<UpstreamAddress, JoinHandle<()>>,
+) {
+    let ctx = context.clone();
+    let upstreams = get_current_upstreams(ctx);
+    let being_probed = get_upstreams_being_probed(probing_tasks);
+
+    let to_add = probes_to_add(&upstreams, &being_probed);
+    let to_remove = probes_to_remove(&upstreams, &being_probed);
+
+    for u in to_add.iter() {
+        let ctx = context.clone();
+        do_add_probe(u, probing_tasks, ctx);
+    }
+
+    for u in to_remove.iter() {
+        do_remove_probe(u, probing_tasks);
+    }
+}
+
+fn do_add_probe(
+    to_add: &UpstreamAddress,
+    probing_tasks: &mut HashMap<UpstreamAddress, JoinHandle<()>>,
+    context: Arc<Mutex<Context>>,
+) {
+    log::debug!("Spawning upstream probe for {:?}", to_add);
+    // TODO: read probe configuration from settings
+    let probe = Probe::default(to_add.to_string().as_str());
+    let handle = tokio::spawn(async { probe_upstream(probe, context).await });
+    probing_tasks.insert(to_add.clone(), handle);
+}
+
+fn do_remove_probe(
+    to_remove: &UpstreamAddress,
+    probing_tasks: &mut HashMap<UpstreamAddress, JoinHandle<()>>,
+) {
+    log::info!("Shutting down upstream probe for {:?}", to_remove);
+    let handle = probing_tasks.get(to_remove).unwrap();
+    handle.abort();
+    probing_tasks.remove(to_remove);
+}
+
+fn get_current_upstreams(context: Arc<Mutex<Context>>) -> HashSet<UpstreamAddress> {
+    let ctx = context.lock().unwrap();
+    let mut result = HashSet::new();
+    for u in ctx.get_all_upstreams().iter() {
+        result.insert(u.clone());
+    }
+    result
+}
+
+fn get_upstreams_being_probed(
+    probing_tasks: &HashMap<UpstreamAddress, JoinHandle<()>>,
+) -> HashSet<UpstreamAddress> {
+    let mut result = HashSet::new();
+    for t in probing_tasks.keys() {
+        result.insert(t.clone());
+    }
+    result
+}
+
+fn do_stop_probes(probing_tasks: &mut HashMap<UpstreamAddress, JoinHandle<()>>) {
+    let current_upstreams = HashSet::new();
+    let being_probed = get_upstreams_being_probed(probing_tasks);
+    let to_remove = probes_to_remove(&current_upstreams, &being_probed);
+
+    for u in to_remove.iter() {
+        do_remove_probe(u, probing_tasks);
+    }
+}
+
+fn probes_to_add(
+    current_upstreams: &HashSet<UpstreamAddress>,
+    upstreams_being_probed: &HashSet<UpstreamAddress>,
+) -> Vec<UpstreamAddress> {
+    let mut result = Vec::new();
+    for u in current_upstreams.difference(upstreams_being_probed) {
+        result.push(u.clone());
+    }
+    result
+}
+
+fn probes_to_remove(
+    current_upstreams: &HashSet<UpstreamAddress>,
+    upstreams_being_probed: &HashSet<UpstreamAddress>,
+) -> Vec<UpstreamAddress> {
+    let mut result = Vec::new();
+    for u in upstreams_being_probed.difference(current_upstreams) {
+        result.push(u.clone());
+    }
+    result
 }
 
 async fn probe_upstream(configuration: Probe, context: Arc<Mutex<Context>>) {

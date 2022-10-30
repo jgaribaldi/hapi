@@ -16,7 +16,6 @@ pub struct Context {
 }
 
 impl Context {
-
     pub fn build_empty() -> Self {
         Context {
             routes: Vec::new(),
@@ -84,7 +83,8 @@ impl Context {
     }
 
     pub fn get_route_by_id(&self, route_id: &str) -> Option<&Route> {
-        self.route_index.get(route_id)
+        self.route_index
+            .get(route_id)
             .and_then(|index| self.routes.get(*index))
     }
 
@@ -135,7 +135,8 @@ impl Context {
         for (index, route) in self.routes.iter().enumerate() {
             for path in route.paths.iter() {
                 for method in route.methods.iter() {
-                    self.routing_table.insert((path.clone(), method.clone()), index);
+                    self.routing_table
+                        .insert((path.clone(), method.clone()), index);
                 }
             }
         }
@@ -170,8 +171,12 @@ mod tests {
     fn should_perform_upstream_lookup() {
         // given:
         let mut context = Context::build_empty();
-        context.add_route(sample_route_1(UpstreamStrategy::AlwaysFirst)).unwrap();
-        context.add_route(sample_route_2(UpstreamStrategy::RoundRobin { index: 0 })).unwrap();
+        context
+            .add_route(sample_route_1(UpstreamStrategy::AlwaysFirst))
+            .unwrap();
+        context
+            .add_route(sample_route_2(UpstreamStrategy::RoundRobin { index: 0 }))
+            .unwrap();
 
         // when:
         let upstream = context.upstream_lookup("uri1", "GET");
@@ -184,8 +189,12 @@ mod tests {
     fn should_match_route_by_path_regexp() {
         // given:
         let mut context = Context::build_empty();
-        context.add_route(sample_route_2(UpstreamStrategy::AlwaysFirst)).unwrap();
-        context.add_route(sample_route_3(UpstreamStrategy::AlwaysFirst)).unwrap();
+        context
+            .add_route(sample_route_2(UpstreamStrategy::AlwaysFirst))
+            .unwrap();
+        context
+            .add_route(sample_route_3(UpstreamStrategy::AlwaysFirst))
+            .unwrap();
 
         // when:
         let upstream = context.upstream_lookup("uri10", "GET");
@@ -201,8 +210,12 @@ mod tests {
     fn should_match_route_by_method_regexp() {
         // given:
         let mut context = Context::build_empty();
-        context.add_route(sample_route_2(UpstreamStrategy::AlwaysFirst)).unwrap();
-        context.add_route(sample_route_4(UpstreamStrategy::AlwaysFirst)).unwrap();
+        context
+            .add_route(sample_route_2(UpstreamStrategy::AlwaysFirst))
+            .unwrap();
+        context
+            .add_route(sample_route_4(UpstreamStrategy::AlwaysFirst))
+            .unwrap();
 
         // when:
         let upstream = context.upstream_lookup("uri4", "PATCH");
@@ -218,7 +231,9 @@ mod tests {
     fn should_not_find_route_for_non_exact_match() {
         // given:
         let mut context = Context::build_empty();
-        context.add_route(sample_route_5(UpstreamStrategy::AlwaysFirst)).unwrap();
+        context
+            .add_route(sample_route_5(UpstreamStrategy::AlwaysFirst))
+            .unwrap();
 
         // when:
         let upstream = context.upstream_lookup("uri5", "GET");
@@ -248,8 +263,12 @@ mod tests {
     fn should_disable_upstream() {
         // given:
         let mut context = Context::build_empty();
-        context.add_route(sample_route_5(UpstreamStrategy::AlwaysFirst)).unwrap();
-        context.add_route(sample_route_6(UpstreamStrategy::AlwaysFirst)).unwrap();
+        context
+            .add_route(sample_route_5(UpstreamStrategy::AlwaysFirst))
+            .unwrap();
+        context
+            .add_route(sample_route_6(UpstreamStrategy::AlwaysFirst))
+            .unwrap();
         let ups_addr = UpstreamAddress::FQDN(String::from("upstream21"));
 
         // when:
@@ -269,8 +288,12 @@ mod tests {
     fn should_enable_upstream() {
         // given:
         let mut context = Context::build_empty();
-        context.add_route(sample_route_7(UpstreamStrategy::AlwaysFirst)).unwrap();
-        context.add_route(sample_route_8(UpstreamStrategy::AlwaysFirst)).unwrap();
+        context
+            .add_route(sample_route_7(UpstreamStrategy::AlwaysFirst))
+            .unwrap();
+        context
+            .add_route(sample_route_8(UpstreamStrategy::AlwaysFirst))
+            .unwrap();
         let ups_addr = UpstreamAddress::FQDN(String::from("upstream21"));
 
         // when:

@@ -5,9 +5,9 @@ use hyper::{header, Body, Method, Request, Response};
 use serde::Deserialize;
 use serde::Serialize;
 
+use crate::infrastructure::serializable_model::Route;
 use crate::model::upstream::UpstreamAddress;
 use crate::{Context, HapiError, Stats};
-use crate::infrastructure::serializable_model::Route;
 
 pub async fn process_request(
     context: Arc<Mutex<Context>>,
@@ -27,19 +27,17 @@ pub async fn process_request(
                 // a route ID was given
                 match get_route_by_id_json(context, path_parts[2]) {
                     Some(json_route) => json_response(json_route),
-                    None => not_found_response()
+                    None => not_found_response(),
                 }
             } else {
                 let json = get_all_routes_json(context);
                 json_response(json)
             }
         }
-        (ApiResource::Route, &Method::DELETE) => {
-            match delete_route(context, path_parts[2]) {
-                Ok(_) => ok_response(),
-                Err(_) => not_found_response()
-            }
-        }
+        (ApiResource::Route, &Method::DELETE) => match delete_route(context, path_parts[2]) {
+            Ok(_) => ok_response(),
+            Err(_) => not_found_response(),
+        },
         (ApiResource::Upstream, &Method::GET) => {
             let json = get_all_upstreams_json(context);
             json_response(json)
