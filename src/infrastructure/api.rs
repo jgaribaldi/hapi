@@ -40,13 +40,7 @@ pub async fn process_request(
         }
         (ApiResource::Route, &Method::DELETE) => match delete_route(context, path_parts[2]) {
             Ok(_) => {
-                match cmd_tx.send(RebuildProbes).await {
-                    Ok(_) => log::debug!("Sent RebuildProbes command to probe handler"),
-                    Err(e) => log::error!(
-                        "Error sending RebuildProbes command to probe handler {:?}",
-                        e
-                    ),
-                }
+                rebuild_probes(&cmd_tx);
                 ok_response()
             }
             Err(_) => not_found_response(),
@@ -57,10 +51,7 @@ pub async fn process_request(
                     let route: Route = serde_json::from_slice(bytes.to_vec().as_slice()).unwrap();
                     log::debug!("Route received {:?}", route);
                     add_route(context, route).unwrap();
-                    match cmd_tx.send(RebuildProbes).await {
-                        Ok(_) => log::debug!("Sent RebuildProbes command to probe handler"),
-                        Err(e) => log::error!("Error sending RebuildProbes command to probe handler {:?}", e),
-                    }
+                    rebuild_probes(&cmd_tx);
                 }
                 Err(e) => {}
             }
@@ -142,6 +133,13 @@ fn add_route(context: Arc<Mutex<Context>>, route_to_add: Route) -> Result<(), Ha
     let mut ctx = context.lock().unwrap();
     let r = crate::model::route::Route::from(route_to_add);
     ctx.add_route(r)
+}
+
+async fn rebuild_probes(cmd_tx: &Sender<Command>) {
+    match cmd_tx.send(RebuildProbes).await {
+        Ok(_) => log::debug!("Sent RebuildProbes command to probe handler"),
+        Err(e) => log::error!("Error sending RebuildProbes command to probe handler {:?}", e),
+    }
 }
 
 fn json_response(json: String) -> Response<Body> {
