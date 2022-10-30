@@ -22,94 +22,98 @@ pub enum Command {
 /// accordingly
 pub async fn upstream_probe_handler(mut rx: Receiver<Command>, context: Arc<Mutex<Context>>) {
     // holds the state of the manager task
-    let mut probing_tasks = HashMap::new();
+    // let mut probing_tasks = HashMap::new();
+    let mut upstream_probe_controller = UpstreamProbeController::build(context.clone());
 
     while let Some(message) = rx.recv().await {
         log::debug!("Received message {:?}", message);
         match message {
-            Command::RebuildProbes => {
-                let context = context.clone();
-                do_rebuild_probes(context, &mut probing_tasks);
-            }
-            Command::StopProbes => do_stop_probes(&mut probing_tasks),
+            Command::RebuildProbes => upstream_probe_controller.rebuild_probes(),
+            Command::StopProbes => upstream_probe_controller.shutdown_all_probes(),
         }
     }
 }
 
-fn do_rebuild_probes(
+struct UpstreamProbeController {
+    probes_status: HashMap<UpstreamAddress, JoinHandle<()>>,
     context: Arc<Mutex<Context>>,
-    probing_tasks: &mut HashMap<UpstreamAddress, JoinHandle<()>>,
-) {
-    let ctx = context.clone();
-    let upstreams = get_current_upstreams(ctx);
-    let being_probed = get_upstreams_being_probed(probing_tasks);
+}
 
-    let to_add = probes_to_add(&upstreams, &being_probed);
-    let to_remove = probes_to_remove(&upstreams, &being_probed);
-
-    for u in to_add.iter() {
-        let ctx = context.clone();
-        do_add_probe(u, probing_tasks, ctx);
+impl UpstreamProbeController {
+    pub fn build(context: Arc<Mutex<Context>>) -> Self {
+        UpstreamProbeController {
+            probes_status: HashMap::new(),
+            context,
+        }
     }
 
-    for u in to_remove.iter() {
-        do_remove_probe(u, probing_tasks);
+    pub fn rebuild_probes(&mut self) {
+        let upstreams = self.get_current_upstreams();
+        let being_probed = self.get_upstreams_being_probed();
+
+        let to_add = probes_to_add(&upstreams, &being_probed);
+        let to_remove = probes_to_remove(&upstreams, &being_probed);
+
+        for u in to_add.iter() {
+            self.do_add_probe(u);
+        }
+
+        for u in to_remove.iter() {
+            self.do_remove_probe(u);
+        }
     }
-}
 
-/// Spawn a new probing task for the given upstream and add it to the probe handler state
-fn do_add_probe(
-    to_add: &UpstreamAddress,
-    probing_tasks: &mut HashMap<UpstreamAddress, JoinHandle<()>>,
-    context: Arc<Mutex<Context>>,
-) {
-    log::debug!("Spawning upstream probe for {:?}", to_add);
-    // TODO: read probe configuration from settings
-    let probe = Probe::default(to_add.to_string().as_str());
-    let handle = tokio::spawn(async { probe_upstream(probe, context).await });
-    probing_tasks.insert(to_add.clone(), handle);
-}
+    pub fn shutdown_all_probes(&mut self) {
+        let current_upstreams = HashSet::new();
+        let being_probed = self.get_upstreams_being_probed();
+        let to_remove = probes_to_remove(&current_upstreams, &being_probed);
 
-/// Kill the probing task for the given upstream and remove it from the probe handler state
-fn do_remove_probe(
-    to_remove: &UpstreamAddress,
-    probing_tasks: &mut HashMap<UpstreamAddress, JoinHandle<()>>,
-) {
-    log::info!("Shutting down upstream probe for {:?}", to_remove);
-    let handle = probing_tasks.get(to_remove).unwrap();
-    handle.abort();
-    probing_tasks.remove(to_remove);
-}
-
-/// Returns the upstreams in the current context
-fn get_current_upstreams(context: Arc<Mutex<Context>>) -> HashSet<UpstreamAddress> {
-    let ctx = context.lock().unwrap();
-    let mut result = HashSet::new();
-    for u in ctx.get_all_upstreams().iter() {
-        result.insert(u.clone());
+        for u in to_remove.iter() {
+            self.do_remove_probe(u);
+        }
     }
-    result
-}
 
-/// Returns the upstreams currently being probed
-fn get_upstreams_being_probed(
-    probing_tasks: &HashMap<UpstreamAddress, JoinHandle<()>>,
-) -> HashSet<UpstreamAddress> {
-    let mut result = HashSet::new();
-    for t in probing_tasks.keys() {
-        result.insert(t.clone());
+    fn get_current_upstreams(&self) -> HashSet<UpstreamAddress> {
+        let ctx = self.context.lock().unwrap();
+        let mut result = HashSet::new();
+        for u in ctx.get_all_upstreams().iter() {
+            result.insert(u.clone());
+        }
+        result
     }
-    result
-}
 
-/// Stops all the current upstream probing tasks and removes them from the probing_tasks map
-fn do_stop_probes(probing_tasks: &mut HashMap<UpstreamAddress, JoinHandle<()>>) {
-    let current_upstreams = HashSet::new();
-    let being_probed = get_upstreams_being_probed(probing_tasks);
-    let to_remove = probes_to_remove(&current_upstreams, &being_probed);
+    fn get_upstreams_being_probed(&self) -> HashSet<UpstreamAddress> {
+        let mut result = HashSet::new();
+        for t in self.probes_status.keys() {
+            result.insert(t.clone());
+        }
+        result
+    }
 
-    for u in to_remove.iter() {
-        do_remove_probe(u, probing_tasks);
+    /// Spawn a new probing task for the given upstream and add it to the probe handler state
+    fn do_add_probe(&mut self, to_add: &UpstreamAddress) {
+        log::debug!("Spawning upstream probe for {:?}", to_add);
+        let handle = self.create_probe_and_spawn_task(to_add.to_string().as_str());
+        match self.probes_status.insert(to_add.clone(), handle) {
+            None => {}
+            Some(old_handle) => old_handle.abort()
+        }
+    }
+
+    fn create_probe_and_spawn_task(&self, upstream_to_add: &str) -> JoinHandle<()> {
+        // TODO: read probe configuration from settings
+        let probe = Probe::default(upstream_to_add);
+        let context = self.context.clone();
+        tokio::spawn(async { probe_upstream(probe, context).await })
+    }
+
+    /// Kill the probing task for the given upstream and remove it from the probe handler state
+    fn do_remove_probe(&mut self, to_remove: &UpstreamAddress) {
+        log::info!("Shutting down upstream probe for {:?}", to_remove);
+        match self.probes_status.remove(to_remove) {
+            Some(handle) => handle.abort(),
+            None => log::warn!("Given upstream to remove is not present in the current state {:?}", to_remove)
+        }
     }
 }
 
