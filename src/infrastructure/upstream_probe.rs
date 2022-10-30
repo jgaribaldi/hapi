@@ -21,8 +21,6 @@ pub enum Command {
 /// Task that manages the upstream probes thread: listens to commands in the channel and acts
 /// accordingly
 pub async fn upstream_probe_handler(mut rx: Receiver<Command>, context: Arc<Mutex<Context>>) {
-    // holds the state of the manager task
-    // let mut probing_tasks = HashMap::new();
     let mut upstream_probe_controller = UpstreamProbeController::build(context.clone());
 
     while let Some(message) = rx.recv().await {
@@ -96,7 +94,7 @@ impl UpstreamProbeController {
         let handle = self.create_probe_and_spawn_task(to_add.to_string().as_str());
         match self.probes_status.insert(to_add.clone(), handle) {
             None => {}
-            Some(old_handle) => old_handle.abort()
+            Some(old_handle) => old_handle.abort(),
         }
     }
 
@@ -112,7 +110,10 @@ impl UpstreamProbeController {
         log::info!("Shutting down upstream probe for {:?}", to_remove);
         match self.probes_status.remove(to_remove) {
             Some(handle) => handle.abort(),
-            None => log::warn!("Given upstream to remove is not present in the current state {:?}", to_remove)
+            None => log::warn!(
+                "Given upstream to remove is not present in the current state {:?}",
+                to_remove
+            ),
         }
     }
 }

@@ -7,10 +7,10 @@ use serde::Serialize;
 use tokio::sync::mpsc::Sender;
 
 use crate::infrastructure::serializable_model::Route;
-use crate::model::upstream::UpstreamAddress;
-use crate::{Context, HapiError, Stats};
 use crate::infrastructure::upstream_probe::Command;
 use crate::infrastructure::upstream_probe::Command::RebuildProbes;
+use crate::model::upstream::UpstreamAddress;
+use crate::{Context, HapiError, Stats};
 
 pub async fn process_request(
     context: Arc<Mutex<Context>>,
@@ -42,10 +42,13 @@ pub async fn process_request(
             Ok(_) => {
                 match cmd_tx.send(RebuildProbes).await {
                     Ok(_) => log::debug!("Sent RebuildProbes command to probe handler"),
-                    Err(e) => log::error!("Error sending RebuildProbes command to probe handler {:?}", e),
+                    Err(e) => log::error!(
+                        "Error sending RebuildProbes command to probe handler {:?}",
+                        e
+                    ),
                 }
                 ok_response()
-            },
+            }
             Err(_) => not_found_response(),
         },
         (ApiResource::Upstream, &Method::GET) => {
