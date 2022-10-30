@@ -58,11 +58,12 @@ impl Context {
     /// Removes the given route from this context
     /// Returns an error if the route id doesn't exist in the context
     pub fn remove_route(&mut self, route_id: &str) -> Result<(), HapiError> {
-        if self.route_index.contains_key(route_id) {
-            self.do_remove_route(route_id);
-            Ok(())
-        } else {
-            Err(HapiError::RouteNotExists)
+        match self.route_index.get(route_id) {
+            Some(route_index) => {
+                self.do_remove_route(*route_index);
+                Ok(())
+            }
+            None => Err(HapiError::RouteNotExists),
         }
     }
 
@@ -114,19 +115,19 @@ impl Context {
     }
 
     fn do_add_route(&mut self, route: Route) {
-        self.route_index.insert(route.id.clone(), self.routes.len());
         self.routes.push(route);
 
         self.rebuild_routing_table();
-        self.rebuild_upstreams()
+        self.rebuild_upstreams();
+        self.rebuild_route_index();
     }
 
-    fn do_remove_route(&mut self, route_id: &str) {
-        let index_to_remove = self.route_index.remove(route_id).unwrap();
-        self.routes.remove(index_to_remove);
+    fn do_remove_route(&mut self, route_index: usize) {
+        self.routes.remove(route_index);
 
         self.rebuild_routing_table();
-        self.rebuild_upstreams()
+        self.rebuild_upstreams();
+        self.rebuild_route_index();
     }
 
     fn rebuild_routing_table(&mut self) {
@@ -149,6 +150,14 @@ impl Context {
             for upstream in route.upstreams.iter() {
                 self.upstreams.insert(upstream.address.clone());
             }
+        }
+    }
+
+    fn rebuild_route_index(&mut self) {
+        self.route_index.clear();
+
+        for (idx, route) in self.routes.iter().enumerate() {
+            self.route_index.insert(route.id.clone(), idx);
         }
     }
 }
@@ -381,6 +390,29 @@ mod tests {
         assert_eq!(true, remove_route_result.is_err());
         assert_eq!(1, context.routes.len());
         assert_eq!(1, context.route_index.len());
+    }
+
+    #[test]
+    fn should_remove_routes_in_reverse_order() {
+        // given:
+        let route1 = sample_route_1(UpstreamStrategy::AlwaysFirst);
+        let route2 = sample_route_2(UpstreamStrategy::AlwaysFirst);
+        let route_id1_to_remove = route1.id.clone();
+        let route_id2_to_remove = route2.id.clone();
+        let mut context = Context::build_empty();
+        context.add_route(route1).unwrap();
+        context.add_route(route2).unwrap();
+
+        // when:
+        let remove_result1 = context.remove_route(route_id1_to_remove.as_str());
+        let remove_result2 = context.remove_route(route_id2_to_remove.as_str());
+
+        // then:
+        assert_eq!(true, remove_result1.is_ok());
+        assert_eq!(true, remove_result2.is_ok());
+        assert_eq!(0, context.routes.len());
+        assert_eq!(0, context.route_index.len());
+        assert_eq!(0, context.routing_table.len());
     }
 
     fn sample_route_1(strategy: UpstreamStrategy) -> Route {
