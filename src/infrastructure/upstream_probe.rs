@@ -18,8 +18,12 @@ pub enum Command {
     StopProbes,
 }
 
+/// Task that manages the upstream probes thread: listens to commands in the channel and acts
+/// accordingly
 pub async fn upstream_probe_handler(mut rx: Receiver<Command>, context: Arc<Mutex<Context>>) {
+    // holds the state of the manager task
     let mut probing_tasks = HashMap::new();
+
     while let Some(message) = rx.recv().await {
         log::debug!("Received message {:?}", message);
         match message {
@@ -53,6 +57,7 @@ fn do_rebuild_probes(
     }
 }
 
+/// Spawn a new probing task for the given upstream and add it to the probe handler state
 fn do_add_probe(
     to_add: &UpstreamAddress,
     probing_tasks: &mut HashMap<UpstreamAddress, JoinHandle<()>>,
@@ -65,6 +70,7 @@ fn do_add_probe(
     probing_tasks.insert(to_add.clone(), handle);
 }
 
+/// Kill the probing task for the given upstream and remove it from the probe handler state
 fn do_remove_probe(
     to_remove: &UpstreamAddress,
     probing_tasks: &mut HashMap<UpstreamAddress, JoinHandle<()>>,
@@ -75,6 +81,7 @@ fn do_remove_probe(
     probing_tasks.remove(to_remove);
 }
 
+/// Returns the upstreams in the current context
 fn get_current_upstreams(context: Arc<Mutex<Context>>) -> HashSet<UpstreamAddress> {
     let ctx = context.lock().unwrap();
     let mut result = HashSet::new();
@@ -84,6 +91,7 @@ fn get_current_upstreams(context: Arc<Mutex<Context>>) -> HashSet<UpstreamAddres
     result
 }
 
+/// Returns the upstreams currently being probed
 fn get_upstreams_being_probed(
     probing_tasks: &HashMap<UpstreamAddress, JoinHandle<()>>,
 ) -> HashSet<UpstreamAddress> {
@@ -94,6 +102,7 @@ fn get_upstreams_being_probed(
     result
 }
 
+/// Stops all the current upstream probing tasks and removes them from the probing_tasks map
 fn do_stop_probes(probing_tasks: &mut HashMap<UpstreamAddress, JoinHandle<()>>) {
     let current_upstreams = HashSet::new();
     let being_probed = get_upstreams_being_probed(probing_tasks);
@@ -104,6 +113,9 @@ fn do_stop_probes(probing_tasks: &mut HashMap<UpstreamAddress, JoinHandle<()>>) 
     }
 }
 
+/// Calculates the difference between the current upstreams and the upstreams being probed,
+/// indicating that "new" upstreams are present in the current context and we need to start probing
+/// them
 fn probes_to_add(
     current_upstreams: &HashSet<UpstreamAddress>,
     upstreams_being_probed: &HashSet<UpstreamAddress>,
@@ -115,6 +127,9 @@ fn probes_to_add(
     result
 }
 
+/// Calculates the difference between the upstreams currently being probed and the upstreams present
+/// in the current context, indicating that "old" upstreams are being probed (upstreams that no
+/// longer exist in the current context) and that we should stop probing them
 fn probes_to_remove(
     current_upstreams: &HashSet<UpstreamAddress>,
     upstreams_being_probed: &HashSet<UpstreamAddress>,
@@ -126,6 +141,11 @@ fn probes_to_remove(
     result
 }
 
+/// Task that probes an upstream according to the given configuration (probe): if it detects that
+/// the upstream is down, it disables it in the current context. If it detects that the upstream is
+/// back up, it enables it in the current context.
+/// The test to see if a given upstream is "up" is done establishing a TCP connection to the
+/// upstream address.
 async fn probe_upstream(configuration: Probe, context: Arc<Mutex<Context>>) {
     let mut poller = Poller::build(configuration.error_count, configuration.success_count);
     log::info!("Probing upstream with configuration {:?}", configuration);
