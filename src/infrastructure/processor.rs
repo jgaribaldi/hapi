@@ -4,26 +4,20 @@ use std::sync::{Arc, Mutex};
 use hyper::header::HOST;
 use hyper::{Body, Client, HeaderMap, Request, Response, Uri};
 
-use crate::infrastructure::stats;
-use crate::infrastructure::stats::Stats;
 use crate::model::upstream::UpstreamAddress;
 use crate::{Context, HapiError};
 
 pub async fn process_request(
     context: Arc<Mutex<Context>>,
     request: Request<Body>,
-    stats: Arc<Mutex<Stats>>,
-    client: String,
-) -> Result<Response<Body>, HapiError> {
-    log::debug!("Received: {:?}", &request);
-    let method = request.method().to_string();
-    let path = request.uri().path().to_string();
+) -> Result<(Response<Body>, Option<UpstreamAddress>), HapiError> {
+    let method = request.method();
+    let path = request.uri().path();
 
-    let maybe_upstream = search_upstream(context, path.as_str(), method.as_str());
-    let response = match maybe_upstream {
+    let maybe_upstream = search_upstream(context, path, method.as_str());
+    match maybe_upstream {
         Some(upstream_address) => {
-            let upstream_uri =
-                Uri::from_str(absolute_url_for(&upstream_address, path.as_str()).as_str())?;
+            let upstream_uri = Uri::from_str(absolute_url_for(&upstream_address, path).as_str())?;
             let headers = headers_for(&request, &upstream_address);
 
             let mut upstream_request = Request::from(request);
@@ -31,26 +25,18 @@ pub async fn process_request(
             *upstream_request.headers_mut() = headers;
             log::debug!("Generated: {:?}", &upstream_request);
 
-            stats::count_request(
-                stats,
-                client.as_str(),
-                method.as_str(),
-                path.as_str(),
-                upstream_address.to_string().as_str(),
-            )
-            .await;
-
             let client = Client::new();
-            client.request(upstream_request).await?
+            let response = client.request(upstream_request).await?;
+
+            log::debug!("Response: {:?}", &response);
+            Ok((response, Some(upstream_address)))
         }
         None => {
             log::debug!("No routes found for {:?}", request);
-            Response::builder().status(404).body(Body::empty()).unwrap()
+            let response = Response::builder().status(404).body(Body::empty()).unwrap();
+            Ok((response, None))
         }
-    };
-
-    log::debug!("Response: {:?}", &response);
-    Ok(response)
+    }
 }
 
 fn search_upstream(

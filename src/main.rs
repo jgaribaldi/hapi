@@ -9,10 +9,11 @@ use tokio::sync::mpsc;
 use tokio::sync::mpsc::Sender;
 
 use crate::errors::HapiError;
+use crate::infrastructure::access_point::resolve_hapi_request;
+use crate::infrastructure::api;
 use crate::infrastructure::settings::HapiSettings;
 use crate::infrastructure::stats::Stats;
 use crate::infrastructure::upstream_probe::{upstream_probe_handler, Command};
-use crate::infrastructure::{api, processor};
 use crate::model::context::Context;
 
 mod errors;
@@ -54,7 +55,7 @@ async fn main() -> Result<(), HapiError> {
 
         let service = service_fn(move |request| {
             let client = identify_client(&remote_addr, &request);
-            processor::process_request(context.clone(), request, stats.clone(), client)
+            resolve_hapi_request(context.clone(), stats.clone(), request, client)
         });
         async move { Ok::<_, HapiError>(service) }
     });

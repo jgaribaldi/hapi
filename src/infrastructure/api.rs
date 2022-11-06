@@ -8,9 +8,9 @@ use tokio::sync::mpsc::Sender;
 
 use crate::infrastructure::serializable_model::Route;
 use crate::infrastructure::upstream_probe::Command;
-use crate::infrastructure::upstream_probe::Command::RebuildProbes;
 use crate::model::upstream::UpstreamAddress;
 use crate::{Context, HapiError, Stats};
+use crate::infrastructure::access_point::{add_route, delete_route};
 
 pub async fn process_request(
     context: Arc<Mutex<Context>>,
@@ -38,11 +38,8 @@ pub async fn process_request(
                 json_response(json)
             }
         }
-        (ApiResource::Route, &Method::DELETE) => match delete_route(context, path_parts[2]) {
-            Ok(_) => {
-                rebuild_probes(&cmd_tx).await;
-                ok_response()
-            }
+        (ApiResource::Route, &Method::DELETE) => match delete_route(context, path_parts[2], cmd_tx).await {
+            Ok(_) => ok_response(),
             Err(_) => not_found_response(),
         },
         (ApiResource::Route, &Method::POST) => {
@@ -57,9 +54,10 @@ pub async fn process_request(
             match route_result {
                 Ok(route) => {
                     log::debug!("Route received {:?}", route);
-                    add_route(context, route).unwrap();
-                    rebuild_probes(&cmd_tx).await;
-                    ok_response()
+                    match add_route(context, route, cmd_tx).await {
+                        Ok(_) => ok_response(),
+                        Err(e) => bad_request_response(e),
+                    }
                 }
                 Err(e) => {
                     log::warn!("Error deserializing route {:?}", e);
@@ -132,27 +130,6 @@ fn get_route_by_id(context: Arc<Mutex<Context>>, route_id: &str) -> Option<Route
     let ctx = context.lock().unwrap();
     ctx.get_route_by_id(route_id)
         .map(|route| Route::from(route.clone()))
-}
-
-fn delete_route(context: Arc<Mutex<Context>>, route_id: &str) -> Result<(), HapiError> {
-    let mut ctx = context.lock().unwrap();
-    ctx.remove_route(route_id)
-}
-
-fn add_route(context: Arc<Mutex<Context>>, route_to_add: Route) -> Result<(), HapiError> {
-    let mut ctx = context.lock().unwrap();
-    let r = crate::model::route::Route::from(route_to_add);
-    ctx.add_route(r)
-}
-
-async fn rebuild_probes(cmd_tx: &Sender<Command>) {
-    match cmd_tx.send(RebuildProbes).await {
-        Ok(_) => log::debug!("Sent RebuildProbes command to probe handler"),
-        Err(e) => log::error!(
-            "Error sending RebuildProbes command to probe handler {:?}",
-            e
-        ),
-    }
 }
 
 fn json_response(json: String) -> Response<Body> {
