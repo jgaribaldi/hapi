@@ -40,23 +40,33 @@ pub async fn process_request(
         }
         (ApiResource::Route, &Method::DELETE) => match delete_route(context, path_parts[2]) {
             Ok(_) => {
-                rebuild_probes(&cmd_tx);
+                rebuild_probes(&cmd_tx).await;
                 ok_response()
             }
             Err(_) => not_found_response(),
         },
         (ApiResource::Route, &Method::POST) => {
-            match hyper::body::to_bytes(request.into_body()).await {
-                Ok(bytes) => {
-                    let route: Route = serde_json::from_slice(bytes.to_vec().as_slice()).unwrap();
+            let route_result: Result<Route, HapiError> = hyper::body::to_bytes(request.into_body())
+                .await
+                .map_err(|e| HapiError::HyperError(e))
+                .and_then(|bytes| {
+                    serde_json::from_slice(bytes.to_vec().as_slice())
+                        .map_err(|e| HapiError::SerdeError(e))
+                });
+
+            match route_result {
+                Ok(route) => {
                     log::debug!("Route received {:?}", route);
                     add_route(context, route).unwrap();
-                    rebuild_probes(&cmd_tx);
+                    rebuild_probes(&cmd_tx).await;
+                    ok_response()
                 }
-                Err(e) => {}
+                Err(e) => {
+                    log::warn!("Error deserializing route {:?}", e);
+                    bad_request_response(e)
+                }
             }
-            ok_response()
-        },
+        }
         (ApiResource::Upstream, &Method::GET) => {
             let json = get_all_upstreams_json(context);
             json_response(json)
@@ -138,7 +148,10 @@ fn add_route(context: Arc<Mutex<Context>>, route_to_add: Route) -> Result<(), Ha
 async fn rebuild_probes(cmd_tx: &Sender<Command>) {
     match cmd_tx.send(RebuildProbes).await {
         Ok(_) => log::debug!("Sent RebuildProbes command to probe handler"),
-        Err(e) => log::error!("Error sending RebuildProbes command to probe handler {:?}", e),
+        Err(e) => log::error!(
+            "Error sending RebuildProbes command to probe handler {:?}",
+            e
+        ),
     }
 }
 
@@ -156,6 +169,11 @@ fn not_found_response() -> Response<Body> {
 
 fn ok_response() -> Response<Body> {
     Response::builder().status(201).body(Body::empty()).unwrap()
+}
+
+fn bad_request_response(e: HapiError) -> Response<Body> {
+    let body = Body::from(e.to_string());
+    Response::builder().status(400).body(body).unwrap()
 }
 
 enum ApiResource {
