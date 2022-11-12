@@ -55,7 +55,7 @@ pub async fn process_request(
                 Ok(route) => {
                     log::debug!("Route received {:?}", route);
                     match add_route(context, route, cmd_tx).await {
-                        Ok(_) => ok_response(),
+                        Ok(_) => created_response(),
                         Err(e) => bad_request_response(e),
                     }
                 }
@@ -145,6 +145,10 @@ fn not_found_response() -> Response<Body> {
 }
 
 fn ok_response() -> Response<Body> {
+    Response::builder().status(200).body(Body::empty()).unwrap()
+}
+
+fn created_response() -> Response<Body> {
     Response::builder().status(201).body(Body::empty()).unwrap()
 }
 
