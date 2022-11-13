@@ -39,10 +39,15 @@ async fn main() -> Result<(), HapiError> {
     let (main_cmd_tx, probe_handler_cmd_rx) = mpsc::channel(1024 * size_of::<Command>());
 
     // spawn upstream probe handler thread and send command to start probing
+    let probe_settings = settings.probes.clone();
     tokio::spawn(async move {
-        upstream_probe_handler(probe_handler_cmd_rx, uph_thread_safe_context).await;
+        upstream_probe_handler(
+            probe_handler_cmd_rx,
+            uph_thread_safe_context,
+            probe_settings,
+        )
+        .await;
     });
-
     match main_cmd_tx.send(Command::RebuildProbes).await {
         Ok(_) => log::debug!("Sent RebuildProbes command to probe handler"),
         Err(e) => log::error!("Error sending message to probe handler {:?}", e),

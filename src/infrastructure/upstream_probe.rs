@@ -20,8 +20,13 @@ pub enum Command {
 
 /// Task that manages the upstream probes thread: listens to commands in the channel and acts
 /// accordingly
-pub async fn upstream_probe_handler(mut rx: Receiver<Command>, context: Arc<Mutex<Context>>) {
-    let mut upstream_probe_controller = UpstreamProbeController::build(context.clone());
+pub async fn upstream_probe_handler(
+    mut rx: Receiver<Command>,
+    context: Arc<Mutex<Context>>,
+    probe_settings: Option<Vec<Probe>>,
+) {
+    let mut upstream_probe_controller =
+        UpstreamProbeController::build(context.clone(), probe_settings);
 
     while let Some(message) = rx.recv().await {
         log::debug!("Received message {:?}", message);
@@ -35,13 +40,26 @@ pub async fn upstream_probe_handler(mut rx: Receiver<Command>, context: Arc<Mute
 struct UpstreamProbeController {
     probes_status: HashMap<UpstreamAddress, JoinHandle<()>>,
     context: Arc<Mutex<Context>>,
+    probe_settings: HashMap<String, Probe>,
 }
 
 impl UpstreamProbeController {
-    pub fn build(context: Arc<Mutex<Context>>) -> Self {
+    pub fn build(context: Arc<Mutex<Context>>, probe_settings: Option<Vec<Probe>>) -> Self {
+        let probe_settings = match probe_settings {
+            Some(probes) => {
+                let mut ps = HashMap::new();
+                for p in probes.iter() {
+                    ps.insert(p.upstream_address.clone(), p.clone());
+                }
+                ps
+            }
+            None => HashMap::new(),
+        };
+
         UpstreamProbeController {
             probes_status: HashMap::new(),
             context,
+            probe_settings,
         }
     }
 
@@ -99,8 +117,11 @@ impl UpstreamProbeController {
     }
 
     fn create_probe_and_spawn_task(&self, upstream_to_add: &str) -> JoinHandle<()> {
-        // TODO: read probe configuration from settings
-        let probe = Probe::default(upstream_to_add);
+        let probe = match self.probe_settings.get(upstream_to_add) {
+            Some(existing_setting) => existing_setting.clone(),
+            None => Probe::default(upstream_to_add),
+        };
+
         let context = self.context.clone();
         tokio::spawn(async { probe_upstream(probe, context).await })
     }

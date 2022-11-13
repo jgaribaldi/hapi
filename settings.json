@@ -23,12 +23,12 @@
     {
       "upstream_address": "localhost:8001",
       "poll_interval_ms": 1000,
-      "error_count": 5,
-      "success_count": 5
+      "error_count": 6,
+      "success_count": 6
     },
     {
       "upstream_address": "localhost:8002",
-      "poll_interval_ms": 1000,
+      "poll_interval_ms": 1500,
       "error_count": 5,
       "success_count": 5
     }
