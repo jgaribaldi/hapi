@@ -1,14 +1,14 @@
 use crate::errors::HapiError;
 use crate::infrastructure::processor::process_request;
+use crate::infrastructure::serializable_model::Route;
 use crate::infrastructure::stats;
 use crate::infrastructure::stats::Stats;
+use crate::infrastructure::upstream_probe::Command;
+use crate::infrastructure::upstream_probe::Command::RebuildProbes;
 use crate::model::context::Context;
 use hyper::{Body, Request, Response};
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc::Sender;
-use crate::infrastructure::serializable_model::Route;
-use crate::infrastructure::upstream_probe::Command;
-use crate::infrastructure::upstream_probe::Command::RebuildProbes;
 
 pub async fn resolve_hapi_request(
     context: Arc<Mutex<Context>>,
@@ -28,7 +28,8 @@ pub async fn resolve_hapi_request(
             method.as_str(),
             path.as_str(),
             upstream.to_string().as_str(),
-        ).await;
+        )
+        .await;
     }
     Ok(response)
 }

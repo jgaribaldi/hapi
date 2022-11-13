@@ -6,11 +6,11 @@ use serde::Deserialize;
 use serde::Serialize;
 use tokio::sync::mpsc::Sender;
 
+use crate::infrastructure::access_point::{add_route, delete_route};
 use crate::infrastructure::serializable_model::Route;
 use crate::infrastructure::upstream_probe::Command;
 use crate::model::upstream::UpstreamAddress;
 use crate::{Context, HapiError, Stats};
-use crate::infrastructure::access_point::{add_route, delete_route};
 
 pub async fn process_request(
     context: Arc<Mutex<Context>>,
@@ -38,10 +38,12 @@ pub async fn process_request(
                 json_response(json)
             }
         }
-        (ApiResource::Route, &Method::DELETE) => match delete_route(context, path_parts[2], cmd_tx).await {
-            Ok(_) => ok_response(),
-            Err(_) => not_found_response(),
-        },
+        (ApiResource::Route, &Method::DELETE) => {
+            match delete_route(context, path_parts[2], cmd_tx).await {
+                Ok(_) => ok_response(),
+                Err(_) => not_found_response(),
+            }
+        }
         (ApiResource::Route, &Method::POST) => {
             let route_result: Result<Route, HapiError> = hyper::body::to_bytes(request.into_body())
                 .await
