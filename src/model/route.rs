@@ -29,15 +29,6 @@ impl Route {
         }
     }
 
-    pub fn get_upstream_by_address(&self, address: &UpstreamAddress) -> Option<&Upstream> {
-        for u in self.upstreams.iter() {
-            if u.address == *address {
-                return Some(u);
-            }
-        }
-        return None;
-    }
-
     pub fn enable_upstream(&mut self, upstream: &UpstreamAddress) {
         for u in self.upstreams.iter_mut() {
             if u.address == *upstream && !u.enabled {
@@ -82,7 +73,7 @@ mod tests {
         route.enable_upstream(&ups_addr);
 
         // then:
-        let u = route.get_upstream_by_address(&ups_addr).unwrap();
+        let u = get_upstream_by_address(&route, &ups_addr).unwrap();
         assert_eq!(true, u.enabled)
     }
 
@@ -96,7 +87,7 @@ mod tests {
         route.disable_upstream(&ups_addr);
 
         // then:
-        let u = route.get_upstream_by_address(&ups_addr).unwrap();
+        let u = get_upstream_by_address(&route, &ups_addr).unwrap();
         assert_eq!(false, u.enabled)
     }
 
@@ -133,5 +124,14 @@ mod tests {
             vec![upstream1, upstream2, upstream3],
             strategy,
         )
+    }
+
+    fn get_upstream_by_address(route: &Route, address: &UpstreamAddress) -> Option<Upstream> {
+        for u in route.upstreams.iter() {
+            if u.address == *address {
+                return Some(u.clone());
+            }
+        }
+        return None;
     }
 }
