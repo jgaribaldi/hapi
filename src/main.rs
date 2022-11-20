@@ -13,7 +13,7 @@ use crate::infrastructure::access_point::resolve_hapi_request;
 use crate::infrastructure::api;
 use crate::infrastructure::settings::HapiSettings;
 use crate::infrastructure::stats::Stats;
-use crate::infrastructure::upstream_probe::{upstream_probe_handler, Command};
+use crate::infrastructure::probe::{probe_handler, Command};
 use crate::model::context::Context;
 
 mod errors;
@@ -31,7 +31,7 @@ async fn main() -> Result<(), HapiError> {
     let context = build_context_from_settings(&settings)?;
 
     let thread_safe_context = Arc::new(Mutex::new(context));
-    let uph_thread_safe_context = thread_safe_context.clone();
+    let ph_thread_safe_context = thread_safe_context.clone();
     let api_thread_safe_context = thread_safe_context.clone();
 
     let thread_safe_stats = Arc::new(Mutex::new(Stats::build()));
@@ -41,12 +41,7 @@ async fn main() -> Result<(), HapiError> {
     // spawn upstream probe handler thread and send command to start probing
     let probe_settings = settings.probes.clone();
     tokio::spawn(async move {
-        upstream_probe_handler(
-            probe_handler_cmd_rx,
-            uph_thread_safe_context,
-            probe_settings,
-        )
-        .await;
+        probe_handler(probe_handler_cmd_rx, ph_thread_safe_context, probe_settings).await;
     });
     match main_cmd_tx.send(Command::RebuildProbes).await {
         Ok(_) => log::debug!("Sent RebuildProbes command to probe handler"),

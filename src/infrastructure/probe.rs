@@ -20,13 +20,13 @@ pub enum Command {
 
 /// Task that manages the upstream probes thread: listens to commands in the channel and acts
 /// accordingly
-pub async fn upstream_probe_handler(
+pub async fn probe_handler(
     mut rx: Receiver<Command>,
     context: Arc<Mutex<Context>>,
     probe_settings: Option<Vec<Probe>>,
 ) {
     let mut upstream_probe_controller =
-        UpstreamProbeController::build(context.clone(), probe_settings);
+        ProbeController::build(context.clone(), probe_settings);
 
     while let Some(message) = rx.recv().await {
         log::debug!("Received message {:?}", message);
@@ -37,13 +37,13 @@ pub async fn upstream_probe_handler(
     }
 }
 
-struct UpstreamProbeController {
+struct ProbeController {
     probes_status: HashMap<UpstreamAddress, JoinHandle<()>>,
     context: Arc<Mutex<Context>>,
     probe_settings: HashMap<String, Probe>,
 }
 
-impl UpstreamProbeController {
+impl ProbeController {
     pub fn build(context: Arc<Mutex<Context>>, probe_settings: Option<Vec<Probe>>) -> Self {
         let probe_settings = match probe_settings {
             Some(probes) => {
@@ -56,7 +56,7 @@ impl UpstreamProbeController {
             None => HashMap::new(),
         };
 
-        UpstreamProbeController {
+        ProbeController {
             probes_status: HashMap::new(),
             context,
             probe_settings,
@@ -263,7 +263,7 @@ impl Poller {
 
 #[cfg(test)]
 mod tests {
-    use crate::infrastructure::upstream_probe::Poller;
+    use crate::infrastructure::probe::Poller;
 
     #[test]
     fn should_enable_upstream_if_reached_success_count() {

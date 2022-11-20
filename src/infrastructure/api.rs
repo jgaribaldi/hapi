@@ -8,7 +8,7 @@ use tokio::sync::mpsc::Sender;
 
 use crate::infrastructure::access_point::{add_route, delete_route};
 use crate::infrastructure::serializable_model::Route;
-use crate::infrastructure::upstream_probe::Command;
+use crate::infrastructure::probe::Command;
 use crate::model::upstream::UpstreamAddress;
 use crate::{Context, HapiError, Stats};
 
