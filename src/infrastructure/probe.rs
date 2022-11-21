@@ -70,11 +70,11 @@ impl ProbeController {
         let to_add = probes_to_add(&upstreams, &being_probed);
         let to_remove = probes_to_remove(&upstreams, &being_probed);
 
-        for u in to_add.iter() {
+        for u in to_add {
             self.do_add_probe(u);
         }
 
-        for u in to_remove.iter() {
+        for u in to_remove {
             self.do_remove_probe(u);
         }
     }
