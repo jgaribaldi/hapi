@@ -84,7 +84,7 @@ impl ProbeController {
         let being_probed = self.get_upstreams_being_probed();
         let to_remove = probes_to_remove(&current_upstreams, &being_probed);
 
-        for u in to_remove.iter() {
+        for u in to_remove {
             self.do_remove_probe(u);
         }
     }
