@@ -142,13 +142,13 @@ impl ProbeController {
 /// Calculates the difference between the current upstreams and the upstreams being probed,
 /// indicating that "new" upstreams are present in the current context and we need to start probing
 /// them
-fn probes_to_add(
-    current_upstreams: &HashSet<UpstreamAddress>,
-    upstreams_being_probed: &HashSet<UpstreamAddress>,
-) -> Vec<UpstreamAddress> {
+fn probes_to_add<'a>(
+    current_upstreams: &'a HashSet<UpstreamAddress>,
+    upstreams_being_probed: &'a HashSet<UpstreamAddress>,
+) -> Vec<&'a UpstreamAddress> {
     let mut result = Vec::new();
     for u in current_upstreams.difference(upstreams_being_probed) {
-        result.push(u.clone());
+        result.push(u);
     }
     result
 }
@@ -156,13 +156,13 @@ fn probes_to_add(
 /// Calculates the difference between the upstreams currently being probed and the upstreams present
 /// in the current context, indicating that "old" upstreams are being probed (upstreams that no
 /// longer exist in the current context) and that we should stop probing them
-fn probes_to_remove(
-    current_upstreams: &HashSet<UpstreamAddress>,
-    upstreams_being_probed: &HashSet<UpstreamAddress>,
-) -> Vec<UpstreamAddress> {
+fn probes_to_remove<'a>(
+    current_upstreams: &'a HashSet<UpstreamAddress>,
+    upstreams_being_probed: &'a HashSet<UpstreamAddress>,
+) -> Vec<&'a UpstreamAddress> {
     let mut result = Vec::new();
     for u in upstreams_being_probed.difference(current_upstreams) {
-        result.push(u.clone());
+        result.push(u);
     }
     result
 }
