@@ -15,7 +15,7 @@ impl UpstreamAddress {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Upstream {
     pub address: UpstreamAddress,
     pub enabled: bool,

@@ -5,13 +5,13 @@ use crate::HapiError;
 use regex::Regex;
 
 use crate::model::route::Route;
-use crate::model::upstream::UpstreamAddress;
+use crate::model::upstream::{Upstream, UpstreamAddress};
 
 #[derive(Clone, Debug)]
 pub struct Context {
     routes: Vec<Route>,
     routing_table: HashMap<(String, String), usize>, // (path, method) => route index
-    upstreams: HashSet<UpstreamAddress>,
+    upstreams: HashSet<Upstream>,
     route_index: HashMap<String, usize>, // route id => route index
 }
 
@@ -70,7 +70,7 @@ impl Context {
     pub fn get_all_upstreams(&self) -> Vec<UpstreamAddress> {
         let mut result = Vec::new();
         for ups in self.upstreams.iter() {
-            result.push(ups.clone());
+            result.push(ups.address.clone());
         }
         result
     }
@@ -148,7 +148,7 @@ impl Context {
 
         for route in self.routes.iter() {
             for upstream in route.upstreams.iter() {
-                self.upstreams.insert(upstream.address.clone());
+                self.upstreams.insert(upstream.clone());
             }
         }
     }
