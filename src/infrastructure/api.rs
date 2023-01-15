@@ -5,12 +5,14 @@ use hyper::{header, Body, Method, Request, Response};
 use serde::Deserialize;
 use serde::Serialize;
 use tokio::sync::mpsc::Sender;
+use crate::errors::HapiError;
 
 use crate::infrastructure::access_point::{add_route, delete_route};
 use crate::infrastructure::serializable_model::Route;
 use crate::infrastructure::probe::Command;
-use crate::{Context, HapiError, Stats};
+use crate::modules::core::context::Context;
 use crate::modules::core::upstream::UpstreamAddress;
+use crate::modules::stats::Stats;
 
 pub async fn process_request(
     context: Arc<Mutex<Context>>,

@@ -7,8 +7,8 @@
 
 ## Refactor Modules
 - [x] Core
+- [x] Stats
 - [] Probes
-- [] Stats
 
 ## Create infrastructure that supports event driven
 - [] Should receive a command and transform it into a call to the app's core
@@ -40,6 +40,7 @@
 - [] StopProbe
 
 ## 'Stats' Commands
+- [] CountStat
 - [] LookupStats
 
 ## 'Core' Events
@@ -58,5 +59,6 @@
 - [] ProbeWasStopped
 
 ## 'Stats' Events
+- [] StatWasCounted
 - [] StatsWereFound
 - [] StatsWereNotFound

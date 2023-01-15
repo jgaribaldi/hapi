@@ -12,9 +12,9 @@ use crate::errors::HapiError;
 use crate::infrastructure::access_point::resolve_hapi_request;
 use crate::infrastructure::api;
 use crate::infrastructure::settings::HapiSettings;
-use crate::infrastructure::stats::Stats;
 use crate::infrastructure::probe::{probe_handler, Command};
 use crate::modules::core::context::Context;
+use crate::modules::stats::Stats;
 
 mod errors;
 mod infrastructure;
