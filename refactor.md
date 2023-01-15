@@ -1,9 +1,9 @@
 # Event driven migration checklist
 
 ## Create project structure
-- [] Modules
-- [] Interfaces
-- [] Commands and Events
+- [x] Modules
+- [x] Interfaces
+- [x] Commands and Events
 
 ## Create infrastructure that supports event driven
 - [] Should receive a command and transform it into a call to the app's core
@@ -11,12 +11,12 @@
 - [] Create event bus (broadcast channel)
 - [] Create command input for each module (mpsc channel?)
 
-## Modules
+## Refactor Modules
 - [] Core
 - [] Probes
 - [] Stats
 
-## Interfaces
+## Refactor Interfaces
 - [] API
 
 ## Create app settings

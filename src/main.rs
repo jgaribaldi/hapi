@@ -19,6 +19,9 @@ use crate::model::context::Context;
 mod errors;
 mod infrastructure;
 mod model;
+mod modules;
+mod interfaces;
+mod events;
 
 #[tokio::main]
 async fn main() -> Result<(), HapiError> {
