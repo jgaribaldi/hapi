@@ -8,7 +8,7 @@
 ## Refactor Modules
 - [x] Core
 - [x] Stats
-- [] Probes
+- [x] Probes
 
 ## Create infrastructure that supports event driven
 - [] Should receive a command and transform it into a call to the app's core
