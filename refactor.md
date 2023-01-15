@@ -11,10 +11,15 @@
 - [x] Probes
 
 ## Create infrastructure that supports event driven
-- [] Should receive a command and transform it into a call to the app's core
-- [] Should emit an event based on the function's result (write it to the event bus?)
-- [] Create event bus (broadcast channel)
-- [] Create command input for each module (mpsc channel?)
+- [x] Should receive a command and transform it into a call to the app's core
+- [x] Should emit an event based on the function's result (write it to the event bus?)
+- [x] Create event bus (broadcast channel)
+- [x] Create command input for each module (mpsc channel?)
+
+## Refactor app's process structure
+- [] Create appropriate processes and launch them from main
+- [] Remove old process structure
+- [] Set commands and events data
 
 ## Refactor Interfaces
 - [] API

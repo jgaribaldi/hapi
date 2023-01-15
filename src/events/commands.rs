@@ -1,18 +1,16 @@
-pub(crate) enum CoreCommand {
+pub(crate) enum Command {
+    // Core commands
     LookupUpstream { id: String },
     EnableUpstream { id: String },
     DisableUpstream { id: String },
     AddRoute { id: String },
     RemoveRoute { id: String },
-}
 
-pub(crate) enum ProbeCommand {
+    // Probe commands
     StartProbe { id: String },
-    PauseProbe { id: String },
     StopProbe { id: String },
-}
 
-pub(crate) enum StatsCommand {
+    // Stats commands
     CountStat { id: String },
     LookupStats { id: String },
 }

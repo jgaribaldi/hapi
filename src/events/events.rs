@@ -1,4 +1,5 @@
-pub(crate) enum CoreEvent {
+pub(crate) enum Event {
+    // Core events
     UpstreamWasFound { cmd_id: String },
     UpstreamWasNotFound { cmd_id: String },
     UpstreamWasEnabled { cmd_id: String },
@@ -7,15 +8,12 @@ pub(crate) enum CoreEvent {
     RouteWasNotAdded { cmd_id: String },
     RouteWasRemoved { cmd_id: String },
     RouteWasNotRemoved { cmd_id: String },
-}
 
-pub(crate) enum ProbeEvent {
+    // Probe events
     ProbeWasStarted { cmd_id: String },
-    ProbeWasPaused { cmd_id: String },
     ProbeWasStopped { cmd_id: String },
-}
 
-pub(crate) enum StatsEvent {
+    // Stats events
     StatWasCounted { cmd_id: String },
     StatsWereFound { cmd_id: String },
     StatsWereNotFound { cmd_id: String },
