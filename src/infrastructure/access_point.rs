@@ -5,10 +5,10 @@ use crate::infrastructure::stats;
 use crate::infrastructure::stats::Stats;
 use crate::infrastructure::probe::Command;
 use crate::infrastructure::probe::Command::RebuildProbes;
-use crate::model::context::Context;
 use hyper::{Body, Request, Response};
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc::Sender;
+use crate::modules::core::context::Context;
 
 pub async fn resolve_hapi_request(
     context: Arc<Mutex<Context>>,
@@ -56,7 +56,7 @@ pub async fn delete_route(
 
 fn do_add_route(context: Arc<Mutex<Context>>, route_to_add: Route) -> Result<(), HapiError> {
     let mut ctx = context.lock().unwrap();
-    let r = crate::model::route::Route::from(route_to_add);
+    let r = crate::modules::core::route::Route::from(route_to_add);
     ctx.add_route(r)
 }
 

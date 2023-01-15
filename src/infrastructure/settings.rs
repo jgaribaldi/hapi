@@ -44,11 +44,11 @@ impl HapiSettings {
         Ok(result)
     }
 
-    pub fn routes(&self) -> Vec<crate::model::route::Route> {
+    pub fn routes(&self) -> Vec<crate::modules::core::route::Route> {
         let mut result = Vec::new();
 
         for r in self.routes.iter() {
-            let route: crate::model::route::Route = r.clone().into();
+            let route: crate::modules::core::route::Route = r.clone().into();
             result.push(route);
         }
 

@@ -14,11 +14,10 @@ use crate::infrastructure::api;
 use crate::infrastructure::settings::HapiSettings;
 use crate::infrastructure::stats::Stats;
 use crate::infrastructure::probe::{probe_handler, Command};
-use crate::model::context::Context;
+use crate::modules::core::context::Context;
 
 mod errors;
 mod infrastructure;
-mod model;
 mod modules;
 mod interfaces;
 mod events;

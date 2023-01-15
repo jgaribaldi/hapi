@@ -9,8 +9,8 @@ use tokio::task::JoinHandle;
 use tokio::time::sleep;
 
 use crate::infrastructure::serializable_model::Probe;
-use crate::model::upstream::UpstreamAddress;
 use crate::Context;
+use crate::modules::core::upstream::UpstreamAddress;
 
 #[derive(Debug)]
 pub enum Command {

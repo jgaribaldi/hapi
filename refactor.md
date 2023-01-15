@@ -6,7 +6,7 @@
 - [x] Commands and Events
 
 ## Refactor Modules
-- [] Core
+- [x] Core
 - [] Probes
 - [] Stats
 

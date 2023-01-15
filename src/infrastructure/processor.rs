@@ -4,8 +4,8 @@ use std::sync::{Arc, Mutex};
 use hyper::header::HOST;
 use hyper::{Body, Client, HeaderMap, Request, Response, Uri};
 
-use crate::model::upstream::UpstreamAddress;
 use crate::{Context, HapiError};
+use crate::modules::core::upstream::UpstreamAddress;
 
 pub async fn process_request(
     context: Arc<Mutex<Context>>,

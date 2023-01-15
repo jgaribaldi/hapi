@@ -2,8 +2,7 @@ use regex::Regex;
 use serde::Deserialize;
 use serde::Serialize;
 use std::str::FromStr;
-
-use crate::model::upstream::{Upstream, UpstreamStrategy};
+use crate::modules::core::upstream::{Upstream, UpstreamStrategy};
 
 const IPV4_REGEX: &str = "^(\\d|[1-9]\\d|1\\d\\d|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d\\d|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d\\d|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d\\d|2[0-4]\\d|25[0-5])(:(0|[1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5]))*$";
 
@@ -17,8 +16,8 @@ pub struct Route {
     pub upstreams: Vec<String>,
 }
 
-impl From<crate::model::route::Route> for Route {
-    fn from(route: crate::model::route::Route) -> Self {
+impl From<crate::modules::core::route::Route> for Route {
+    fn from(route: crate::modules::core::route::Route) -> Self {
         let upstreams: Vec<String> = route
             .upstreams
             .iter()
@@ -36,7 +35,7 @@ impl From<crate::model::route::Route> for Route {
     }
 }
 
-impl From<Route> for crate::model::route::Route {
+impl From<Route> for crate::modules::core::route::Route {
     fn from(serializable_route: Route) -> Self {
         let mut upstreams = Vec::new();
         let regex = Regex::new(IPV4_REGEX).unwrap();
@@ -52,7 +51,7 @@ impl From<Route> for crate::model::route::Route {
         }
 
         match serializable_route.strategy {
-            Strategy::AlwaysFirst => crate::model::route::Route::build(
+            Strategy::AlwaysFirst => crate::modules::core::route::Route::build(
                 serializable_route.id.clone(),
                 serializable_route.name.clone(),
                 serializable_route.methods.clone(),
@@ -60,7 +59,7 @@ impl From<Route> for crate::model::route::Route {
                 upstreams,
                 UpstreamStrategy::AlwaysFirst,
             ),
-            Strategy::RoundRobin => crate::model::route::Route::build(
+            Strategy::RoundRobin => crate::modules::core::route::Route::build(
                 serializable_route.id.clone(),
                 serializable_route.name.clone(),
                 serializable_route.methods.clone(),
@@ -134,8 +133,8 @@ mod tests {
     use crate::infrastructure::serializable_model::{
         upstream_str_to_tuple, Route, Strategy, IPV4_REGEX,
     };
-    use crate::model::upstream::{Upstream, UpstreamStrategy};
     use regex::Regex;
+    use crate::modules::core::upstream::{Upstream, UpstreamStrategy};
 
     #[test]
     fn should_convert_route_to_serializable_route() {
@@ -155,7 +154,7 @@ mod tests {
         let serializable_route = sample_serializable_route();
 
         // when:
-        let route: crate::model::route::Route = serializable_route.into();
+        let route: crate::modules::core::route::Route = serializable_route.into();
 
         // then:
         assert_eq!(route, sample_route())
@@ -167,7 +166,7 @@ mod tests {
         let serializable_route = sample_serializable_route_ipv4();
 
         // when:
-        let route: crate::model::route::Route = serializable_route.into();
+        let route: crate::modules::core::route::Route = serializable_route.into();
 
         // then:
         assert_eq!(route, sample_route_ipv4())
@@ -199,8 +198,8 @@ mod tests {
         assert_eq!(result, (192, 168, 0, 100, 8080))
     }
 
-    fn sample_route() -> crate::model::route::Route {
-        crate::model::route::Route::build(
+    fn sample_route() -> crate::modules::core::route::Route {
+        crate::modules::core::route::Route::build(
             String::from("id1"),
             String::from("route1"),
             vec![String::from("GET")],
@@ -213,8 +212,8 @@ mod tests {
         )
     }
 
-    fn sample_route_ipv4() -> crate::model::route::Route {
-        crate::model::route::Route::build(
+    fn sample_route_ipv4() -> crate::modules::core::route::Route {
+        crate::modules::core::route::Route::build(
             String::from("id1"),
             String::from("route1"),
             vec![String::from("GET")],
