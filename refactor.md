@@ -5,16 +5,16 @@
 - [x] Interfaces
 - [x] Commands and Events
 
+## Refactor Modules
+- [] Core
+- [] Probes
+- [] Stats
+
 ## Create infrastructure that supports event driven
 - [] Should receive a command and transform it into a call to the app's core
 - [] Should emit an event based on the function's result (write it to the event bus?)
 - [] Create event bus (broadcast channel)
 - [] Create command input for each module (mpsc channel?)
-
-## Refactor Modules
-- [] Core
-- [] Probes
-- [] Stats
 
 ## Refactor Interfaces
 - [] API
