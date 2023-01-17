@@ -18,8 +18,8 @@
 
 ## Refactor app's process structure
 - [x] Create appropriate processes and launch them from main
+- [x] Perform upstream lookup through commands and events
 - [] Remove old process structure
-- [] Set commands and events data
 
 ## Refactor Interfaces
 - [] API
