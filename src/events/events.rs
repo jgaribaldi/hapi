@@ -1,3 +1,4 @@
+#[derive(Clone, Debug)]
 pub(crate) enum Event {
     // Core events
     UpstreamWasFound { cmd_id: String },

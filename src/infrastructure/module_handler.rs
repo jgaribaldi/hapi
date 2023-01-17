@@ -1,24 +1,30 @@
 use std::collections::HashMap;
 use std::time::Duration;
 use tokio::net::TcpStream;
-use tokio::sync::broadcast::Sender;
-use tokio::sync::mpsc::Receiver;
+use tokio::sync::broadcast::{Receiver, Sender};
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
+use crate::errors::HapiError;
 use crate::events::commands::Command;
 use crate::events::events::Event;
 use crate::events::events::Event::{ProbeWasStarted, ProbeWasStopped, RouteWasAdded, RouteWasRemoved,
                                    StatsWereFound, StatWasCounted, UpstreamWasDisabled,
                                    UpstreamWasEnabled, UpstreamWasFound};
+use crate::infrastructure::settings::HapiSettings;
 use crate::modules::core::context::Context;
 use crate::modules::core::upstream::UpstreamAddress;
 use crate::modules::probe::Poller;
 use crate::modules::stats::Stats;
 
 pub(crate) async fn handle_core(mut recv_cmd: Receiver<Command>, send_evt: Sender<Event>) {
-    let context = Context::build_empty();
+    // TODO: remove .unwrap()
+    let settings = HapiSettings::load_from_file("settings.json").unwrap();
+    log::info!("Settings {:?}", settings);
 
-    while let Some(command) = recv_cmd.recv().await {
+    // TODO: remove .unwrap()
+    let context = build_context_from_settings(&settings).unwrap();
+
+    while let Ok(command) = recv_cmd.recv().await {
         let maybe_event = match command {
             Command::LookupUpstream { id } => Some(UpstreamWasFound { cmd_id: id }),
             Command::EnableUpstream { id } => Some(UpstreamWasEnabled { cmd_id: id }),
@@ -37,10 +43,18 @@ pub(crate) async fn handle_core(mut recv_cmd: Receiver<Command>, send_evt: Sende
     }
 }
 
+fn build_context_from_settings(settings: &HapiSettings) -> Result<Context, HapiError> {
+    let mut context = Context::build_empty();
+    for r in settings.routes() {
+        context.add_route(r)?;
+    }
+    Ok(context)
+}
+
 pub(crate) async fn handle_stats(mut recv_cmd: Receiver<Command>, send_evt: Sender<Event>) {
     let mut stats = Stats::build();
 
-    while let Some(command) = recv_cmd.recv().await {
+    while let Ok(command) = recv_cmd.recv().await {
         let maybe_event = match command {
             Command::CountStat { id } => {
                 // TODO: fix
@@ -62,11 +76,12 @@ pub(crate) async fn handle_stats(mut recv_cmd: Receiver<Command>, send_evt: Send
 
 pub(crate) async fn handle_probes(
     mut recv_cmd: Receiver<Command>,
-    send_evt: Sender<Event>, send_cmd: tokio::sync::mpsc::Sender<Command>,
+    send_evt: Sender<Event>,
+    send_cmd: Sender<Command>,
 ) {
     let mut probe_controller = ProbeController::build(send_cmd);
 
-    while let Some(command) = recv_cmd.recv().await {
+    while let Ok(command) = recv_cmd.recv().await {
         let maybe_event = match command {
             Command::StartProbe { id } => {
                 // TODO: fix
@@ -94,11 +109,11 @@ pub(crate) async fn handle_probes(
 
 struct ProbeController {
     probes_status: HashMap<UpstreamAddress, JoinHandle<()>>,
-    send_cmd: tokio::sync::mpsc::Sender<Command>,
+    send_cmd: Sender<Command>,
 }
 
 impl ProbeController {
-    fn build(send_cmd: tokio::sync::mpsc::Sender<Command>) -> Self {
+    fn build(send_cmd: Sender<Command>) -> Self {
         ProbeController {
             probes_status: HashMap::new(),
             send_cmd,
@@ -137,7 +152,7 @@ impl ProbeController {
 /// back up, it enables it in the current context.
 /// The test to see if a given upstream is "up" is done establishing a TCP connection to the
 /// upstream address.
-async fn probe_upstream(upstream_address: String, send_cmd: tokio::sync::mpsc::Sender<Command>) {
+async fn probe_upstream(upstream_address: String, send_cmd: Sender<Command>) {
     let mut poller = Poller::build(5, 5);
 
     loop {
@@ -155,7 +170,7 @@ async fn probe_upstream(upstream_address: String, send_cmd: tokio::sync::mpsc::S
                     // send enable upstream command to core
                     // TODO: fix
                     let command = Command::EnableUpstream { id: String::from("12324") };
-                    match send_cmd.send(command).await {
+                    match send_cmd.send(command) {
                         Ok(_) => log::debug!("Command sent"),
                         Err(e) => log::error!("Error sending command {}", e),
                     }
@@ -171,7 +186,7 @@ async fn probe_upstream(upstream_address: String, send_cmd: tokio::sync::mpsc::S
                     // send disable upstream command to core
                     // TODO: fix
                     let command = Command::DisableUpstream { id: String::from("12324") };
-                    match send_cmd.send(command).await {
+                    match send_cmd.send(command) {
                         Ok(_) => log::debug!("Command sent"),
                         Err(e) => log::error!("Error sending command {}", e),
                     }

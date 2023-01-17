@@ -1,3 +1,4 @@
+#[derive(Clone, Debug)]
 pub(crate) enum Command {
     // Core commands
     LookupUpstream { id: String },

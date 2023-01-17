@@ -1,20 +1,18 @@
 use std::mem::size_of;
 use std::net::SocketAddr;
-use std::sync::{Arc, Mutex};
 
 use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request, Server};
-use tokio::sync::mpsc;
-use tokio::sync::mpsc::Sender;
+use tokio::sync::broadcast;
 
 use crate::errors::HapiError;
-use crate::infrastructure::access_point::resolve_hapi_request;
-use crate::infrastructure::api;
+use crate::events::commands::Command;
+use crate::events::events::Event;
+use crate::infrastructure::module_handler::{handle_core, handle_probes, handle_stats};
 use crate::infrastructure::settings::HapiSettings;
-use crate::infrastructure::probe::{probe_handler, Command};
+use crate::infrastructure::processor::process_request;
 use crate::modules::core::context::Context;
-use crate::modules::stats::Stats;
 
 mod errors;
 mod infrastructure;
@@ -27,64 +25,101 @@ async fn main() -> Result<(), HapiError> {
     simple_logger::init_with_env()?;
     log::info!("This is Hapi, the Happy API");
 
+    // commands channel
+    let (send_cmd, recv_cmd) = broadcast::channel(1024 * size_of::<Command>());
+    // events channel
+    let (send_evt, _recv_evt) = broadcast::channel(1024 * size_of::<Event>());
+
+    // core handler
+    let send_evt1 = send_evt.clone();
+    tokio::spawn(async move {
+        let send_evt1 = send_evt1.clone();
+        handle_core(recv_cmd, send_evt1).await;
+    });
+
+    // stats handler
+    let send_evt2 = send_evt.clone();
+    let recv_cmd2 = send_cmd.subscribe();
+    tokio::spawn(async move {
+        let send_evt2 = send_evt2.clone();
+        handle_stats(recv_cmd2, send_evt2).await;
+    });
+
+    // probes handler
+    let send_evt3 = send_evt.clone();
+    let send_cmd3 = send_cmd.clone();
+    let recv_cmd3 = send_cmd.subscribe();
+    tokio::spawn(async move {
+        handle_probes(recv_cmd3, send_evt3, send_cmd3).await;
+    });
+
     let settings = HapiSettings::load_from_file("settings.json")?;
-    log::info!("Settings {:?}", settings);
+    // log::info!("Settings {:?}", settings);
+    //
+    // let context = build_context_from_settings(&settings)?;
 
-    let context = build_context_from_settings(&settings)?;
-
-    let thread_safe_context = Arc::new(Mutex::new(context));
-    let ph_thread_safe_context = thread_safe_context.clone();
-    let api_thread_safe_context = thread_safe_context.clone();
-
-    let thread_safe_stats = Arc::new(Mutex::new(Stats::build()));
-    let api_thread_safe_stats = thread_safe_stats.clone();
-    let (main_cmd_tx, probe_handler_cmd_rx) = mpsc::channel(1024 * size_of::<Command>());
+    // let thread_safe_context = Arc::new(Mutex::new(context));
+    // let ph_thread_safe_context = thread_safe_context.clone();
+    // let api_thread_safe_context = thread_safe_context.clone();
+    //
+    // let thread_safe_stats = Arc::new(Mutex::new(Stats::build()));
+    // let api_thread_safe_stats = thread_safe_stats.clone();
+    // let (main_cmd_tx, probe_handler_cmd_rx) = mpsc::channel(1024 * size_of::<Command>());
 
     // spawn upstream probe handler thread and send command to start probing
-    let probe_settings = settings.probes.clone();
-    tokio::spawn(async move {
-        probe_handler(probe_handler_cmd_rx, ph_thread_safe_context, probe_settings).await;
-    });
-    match main_cmd_tx.send(Command::RebuildProbes).await {
-        Ok(_) => log::debug!("Sent RebuildProbes command to probe handler"),
-        Err(e) => log::error!("Error sending message to probe handler {:?}", e),
-    }
+    // let probe_settings = settings.probes.clone();
+    // tokio::spawn(async move {
+    //     probe_handler(probe_handler_cmd_rx, ph_thread_safe_context, probe_settings).await;
+    // });
+    // match main_cmd_tx.send(Command::RebuildProbes).await {
+    //     Ok(_) => log::debug!("Sent RebuildProbes command to probe handler"),
+    //     Err(e) => log::error!("Error sending message to probe handler {:?}", e),
+    // }
 
+    let send_cmd4 = send_cmd.clone();
+    let send_evt4 = send_evt.clone();
+    // let send_evt4 = send_evt.clone();
     let make_service = make_service_fn(move |conn: &AddrStream| {
-        let context = thread_safe_context.clone();
-        let stats = thread_safe_stats.clone();
+        // let context = thread_safe_context.clone();
+        // let stats = thread_safe_stats.clone();
         let remote_addr = conn.remote_addr();
+        let send_cmd4 = send_cmd4.clone();
+        let send_evt4 = send_evt4.clone();
 
         let service = service_fn(move |request| {
             let client = identify_client(&remote_addr, &request);
-            resolve_hapi_request(context.clone(), stats.clone(), request, client)
+            let send_cmd4 = send_cmd4.clone();
+            let send_evt4 = send_evt4.clone();
+            let recv_evt4 = send_evt4.subscribe();
+            process_request(request, client, send_cmd4, recv_evt4)
+            // resolve_hapi_request(context.clone(), stats.clone(), request, client)
         });
         async move { Ok::<_, HapiError>(service) }
     });
 
     let addr = settings.server_socket_address()?;
-    let server = Server::bind(&addr)
+    let _server = Server::bind(&addr)
         .serve(make_service)
-        .with_graceful_shutdown(graceful_quit_handler(main_cmd_tx.clone()));
+        .with_graceful_shutdown(graceful_quit_handler());
 
-    let make_api_service = make_service_fn(move |_conn| {
-        let context = api_thread_safe_context.clone();
-        let stats = api_thread_safe_stats.clone();
-        let main_cmd_tx = main_cmd_tx.clone();
-        let service = service_fn(move |request| {
-            let context = context.clone();
-            let stats = stats.clone();
-            api::process_request(context, stats, request, main_cmd_tx.clone())
-        });
-        async move { Ok::<_, HapiError>(service) }
-    });
+    // let make_api_service = make_service_fn(move |_conn| {
+    //     let context = api_thread_safe_context.clone();
+    //     let stats = api_thread_safe_stats.clone();
+    //     let main_cmd_tx = main_cmd_tx.clone();
+    //     let service = service_fn(move |request| {
+    //         let context = context.clone();
+    //         let stats = stats.clone();
+    //         api::process_request(context, stats, request, main_cmd_tx.clone())
+    //     });
+    //     async move { Ok::<_, HapiError>(service) }
+    // });
 
-    let api_addr = settings.api_socket_address()?;
-    let api_server = Server::bind(&api_addr)
-        .serve(make_api_service)
-        .with_graceful_shutdown(api_graceful_quit_handler());
+    // let api_addr = settings.api_socket_address()?;
+    // let api_server = Server::bind(&api_addr)
+    //     .serve(make_api_service)
+    //     .with_graceful_shutdown(api_graceful_quit_handler());
 
-    let _ret = futures_util::future::join(server, api_server).await;
+    // let _ret = futures_util::future::join(server, api_server).await;
     Ok(())
 }
 
@@ -92,28 +127,21 @@ fn identify_client(remote_addr: &SocketAddr, _request: &Request<Body>) -> String
     remote_addr.ip().to_string()
 }
 
-async fn graceful_quit_handler(gqh_cmd_tx: Sender<Command>) {
+async fn graceful_quit_handler() {
     tokio::signal::ctrl_c()
         .await
         .expect("Could not install graceful quit signal handler");
 
-    match gqh_cmd_tx.send(Command::StopProbes).await {
-        Ok(_) => log::debug!("Sent StopProbes command to probe handler"),
-        Err(e) => log::error!("Error sending StopProbes command to probe handler {:?}", e),
-    };
+    // match gqh_cmd_tx.send(Command::StopProbes).await {
+    //     Ok(_) => log::debug!("Sent StopProbes command to probe handler"),
+    //     Err(e) => log::error!("Error sending StopProbes command to probe handler {:?}", e),
+    // };
     log::info!("Shutting down Hapi. Bye :-)")
 }
 
-async fn api_graceful_quit_handler() {
-    tokio::signal::ctrl_c()
-        .await
-        .expect("Could not install graceful quit signal handler");
-}
+// async fn api_graceful_quit_handler() {
+//     tokio::signal::ctrl_c()
+//         .await
+//         .expect("Could not install graceful quit signal handler");
+// }
 
-fn build_context_from_settings(settings: &HapiSettings) -> Result<Context, HapiError> {
-    let mut context = Context::build_empty();
-    for r in settings.routes() {
-        context.add_route(r)?;
-    }
-    Ok(context)
-}

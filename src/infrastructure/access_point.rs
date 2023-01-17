@@ -1,38 +1,32 @@
 use crate::errors::HapiError;
-use crate::infrastructure::processor::process_request;
 use crate::infrastructure::serializable_model::Route;
-use crate::infrastructure::stats;
 use crate::infrastructure::probe::Command;
 use crate::infrastructure::probe::Command::RebuildProbes;
-use hyper::{Body, Request, Response};
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc::Sender;
 use crate::modules::core::context::Context;
-use crate::modules::stats::Stats;
 
-pub async fn resolve_hapi_request(
-    context: Arc<Mutex<Context>>,
-    stats: Arc<Mutex<Stats>>,
-    request: Request<Body>,
-    client: String,
-) -> Result<Response<Body>, HapiError> {
-    log::debug!("Received: {:?}", &request);
-    let method = request.method().to_string();
-    let path = request.uri().path().to_string();
-
-    let (response, maybe_upstream) = process_request(context, request).await?;
-    if let Some(upstream) = maybe_upstream {
-        stats::count_request(
-            stats,
-            client.as_str(),
-            method.as_str(),
-            path.as_str(),
-            upstream.to_string().as_str(),
-        )
-        .await;
-    }
-    Ok(response)
-}
+// pub async fn resolve_hapi_request(
+//     request: Request<Body>,
+//     client: String,
+// ) -> Result<Response<Body>, HapiError> {
+//     log::debug!("Received: {:?}", &request);
+//     let method = request.method().to_string();
+//     let path = request.uri().path().to_string();
+//
+//     let (response, maybe_upstream) = process_request(request).await?;
+//     if let Some(upstream) = maybe_upstream {
+//         stats::count_request(
+//             stats,
+//             client.as_str(),
+//             method.as_str(),
+//             path.as_str(),
+//             upstream.to_string().as_str(),
+//         )
+//         .await;
+//     }
+//     Ok(response)
+// }
 
 pub async fn add_route(
     context: Arc<Mutex<Context>>,

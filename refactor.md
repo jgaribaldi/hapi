@@ -17,7 +17,7 @@
 - [x] Create command input for each module (mpsc channel?)
 
 ## Refactor app's process structure
-- [] Create appropriate processes and launch them from main
+- [x] Create appropriate processes and launch them from main
 - [] Remove old process structure
 - [] Set commands and events data
 
