@@ -26,15 +26,16 @@ async fn main() -> Result<(), HapiError> {
     log::info!("This is Hapi, the Happy API");
 
     // commands channel
-    let (send_cmd, recv_cmd) = broadcast::channel(1024 * size_of::<Command>());
+    let (send_cmd, _recv_cmd) = broadcast::channel(1024 * size_of::<Command>());
     // events channel
     let (send_evt, _recv_evt) = broadcast::channel(1024 * size_of::<Event>());
 
     // core handler
     let send_evt1 = send_evt.clone();
+    let recv_cmd1 = send_cmd.subscribe();
     tokio::spawn(async move {
         let send_evt1 = send_evt1.clone();
-        handle_core(recv_cmd, send_evt1).await;
+        handle_core(recv_cmd1, send_evt1).await;
     });
 
     // stats handler
@@ -54,34 +55,10 @@ async fn main() -> Result<(), HapiError> {
     });
 
     let settings = HapiSettings::load_from_file("settings.json")?;
-    // log::info!("Settings {:?}", settings);
-    //
-    // let context = build_context_from_settings(&settings)?;
-
-    // let thread_safe_context = Arc::new(Mutex::new(context));
-    // let ph_thread_safe_context = thread_safe_context.clone();
-    // let api_thread_safe_context = thread_safe_context.clone();
-    //
-    // let thread_safe_stats = Arc::new(Mutex::new(Stats::build()));
-    // let api_thread_safe_stats = thread_safe_stats.clone();
-    // let (main_cmd_tx, probe_handler_cmd_rx) = mpsc::channel(1024 * size_of::<Command>());
-
-    // spawn upstream probe handler thread and send command to start probing
-    // let probe_settings = settings.probes.clone();
-    // tokio::spawn(async move {
-    //     probe_handler(probe_handler_cmd_rx, ph_thread_safe_context, probe_settings).await;
-    // });
-    // match main_cmd_tx.send(Command::RebuildProbes).await {
-    //     Ok(_) => log::debug!("Sent RebuildProbes command to probe handler"),
-    //     Err(e) => log::error!("Error sending message to probe handler {:?}", e),
-    // }
 
     let send_cmd4 = send_cmd.clone();
     let send_evt4 = send_evt.clone();
-    // let send_evt4 = send_evt.clone();
     let make_service = make_service_fn(move |conn: &AddrStream| {
-        // let context = thread_safe_context.clone();
-        // let stats = thread_safe_stats.clone();
         let remote_addr = conn.remote_addr();
         let send_cmd4 = send_cmd4.clone();
         let send_evt4 = send_evt4.clone();
@@ -92,7 +69,6 @@ async fn main() -> Result<(), HapiError> {
             let send_evt4 = send_evt4.clone();
             let recv_evt4 = send_evt4.subscribe();
             process_request(request, client, send_cmd4, recv_evt4)
-            // resolve_hapi_request(context.clone(), stats.clone(), request, client)
         });
         async move { Ok::<_, HapiError>(service) }
     });
@@ -132,10 +108,6 @@ async fn graceful_quit_handler() {
         .await
         .expect("Could not install graceful quit signal handler");
 
-    // match gqh_cmd_tx.send(Command::StopProbes).await {
-    //     Ok(_) => log::debug!("Sent StopProbes command to probe handler"),
-    //     Err(e) => log::error!("Error sending StopProbes command to probe handler {:?}", e),
-    // };
     log::info!("Shutting down Hapi. Bye :-)")
 }
 
