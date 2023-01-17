@@ -3,6 +3,7 @@ use std::str::FromStr;
 use hyper::header::HOST;
 use hyper::{Body, Client, HeaderMap, Request, Response, Uri};
 use tokio::sync::broadcast::{Receiver, Sender};
+use uuid::Uuid;
 
 use crate::HapiError;
 use crate::events::commands::Command;
@@ -18,7 +19,7 @@ pub(crate) async fn process_request(
     let method = request.method();
     let path = request.uri().path();
 
-    let maybe_upstream = search_upstream(path, method.as_str(), send_cmd, recv_evt).await;
+    let maybe_upstream = search_upstream(client.as_str(), path, method.as_str(), send_cmd, recv_evt).await;
     match maybe_upstream {
         Some(upstream_address) => {
             let upstream_uri = Uri::from_str(absolute_url_for(&upstream_address, path).as_str())?;
@@ -44,13 +45,14 @@ pub(crate) async fn process_request(
 }
 
 async fn search_upstream(
+    client: &str,
     path: &str,
     method: &str,
     send_cmd: Sender<Command>,
     mut recv_evt: Receiver<Event>,
 ) -> Option<UpstreamAddress> {
-    // TODO: fix
-    let command = Command::LookupUpstream { id: String::from("1234") };
+    let cmd_uuid = Uuid::new_v4();
+    let command = Command::LookupUpstream { id: cmd_uuid.to_string(), client: client.to_string(), path: path.to_string(), method: method.to_string() };
     match send_cmd.send(command) {
         Ok(_) => log::debug!("Command sent"),
         Err(e) => log::error!("Error sending command {}", e),
@@ -58,17 +60,16 @@ async fn search_upstream(
 
     let mut result = None;
     while let Ok(event) = recv_evt.recv().await {
+        log::debug!("Received event {:?}", event);
         match event {
-            // TODO: fix
-            Event::UpstreamWasFound { cmd_id } => {
-                if cmd_id == String::from("1234") {
-                    result = Some(UpstreamAddress::FQDN("127.0.0.1".to_string()));
+            Event::UpstreamWasFound { cmd_id, upstream_address } => {
+                if cmd_id == cmd_uuid.to_string() {
+                    result = Some(upstream_address.clone());
                     break
                 }
             },
             Event::UpstreamWasNotFound { cmd_id } => {
-                // TODO: fix
-                if cmd_id == String::from("1234") {
+                if cmd_id == cmd_uuid.to_string() {
                     result = None
                 }
             },

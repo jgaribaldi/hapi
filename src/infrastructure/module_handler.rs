@@ -7,9 +7,7 @@ use tokio::time::sleep;
 use crate::errors::HapiError;
 use crate::events::commands::Command;
 use crate::events::events::Event;
-use crate::events::events::Event::{ProbeWasStarted, ProbeWasStopped, RouteWasAdded, RouteWasRemoved,
-                                   StatsWereFound, StatWasCounted, UpstreamWasDisabled,
-                                   UpstreamWasEnabled, UpstreamWasFound};
+use crate::events::events::Event::{ProbeWasStarted, ProbeWasStopped, RouteWasAdded, RouteWasRemoved, StatsWereFound, StatWasCounted, UpstreamWasDisabled, UpstreamWasEnabled, UpstreamWasFound, UpstreamWasNotFound};
 use crate::infrastructure::settings::HapiSettings;
 use crate::modules::core::context::Context;
 use crate::modules::core::upstream::UpstreamAddress;
@@ -22,11 +20,19 @@ pub(crate) async fn handle_core(mut recv_cmd: Receiver<Command>, send_evt: Sende
     log::info!("Settings {:?}", settings);
 
     // TODO: remove .unwrap()
-    let context = build_context_from_settings(&settings).unwrap();
+    let mut context = build_context_from_settings(&settings).unwrap();
 
     while let Ok(command) = recv_cmd.recv().await {
+        log::debug!("Received command {:?}", command);
         let maybe_event = match command {
-            Command::LookupUpstream { id } => Some(UpstreamWasFound { cmd_id: id }),
+            Command::LookupUpstream { id, client, path, method } => {
+                context.upstream_lookup(path.as_str(), method.as_str())
+                    .map(|upstream| {
+                        UpstreamWasFound { cmd_id: id.clone(), upstream_address: upstream }
+                    })
+                    .or(Some(UpstreamWasNotFound { cmd_id: id.clone() }))
+            },
+            // TODO fix
             Command::EnableUpstream { id } => Some(UpstreamWasEnabled { cmd_id: id }),
             Command::DisableUpstream { id } => Some(UpstreamWasDisabled { cmd_id: id }),
             Command::AddRoute { id } => Some(RouteWasAdded { cmd_id: id }),

@@ -74,9 +74,10 @@ async fn main() -> Result<(), HapiError> {
     });
 
     let addr = settings.server_socket_address()?;
-    let _server = Server::bind(&addr)
+    let server = Server::bind(&addr)
         .serve(make_service)
-        .with_graceful_shutdown(graceful_quit_handler());
+        .await;
+        // .with_graceful_shutdown(graceful_quit_handler());
 
     // let make_api_service = make_service_fn(move |_conn| {
     //     let context = api_thread_safe_context.clone();
@@ -95,7 +96,7 @@ async fn main() -> Result<(), HapiError> {
     //     .serve(make_api_service)
     //     .with_graceful_shutdown(api_graceful_quit_handler());
 
-    // let _ret = futures_util::future::join(server, api_server).await;
+    // let _ret = futures_util::future::join(server, server).await;
     Ok(())
 }
 

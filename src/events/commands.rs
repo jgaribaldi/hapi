@@ -1,7 +1,7 @@
 #[derive(Clone, Debug)]
 pub(crate) enum Command {
     // Core commands
-    LookupUpstream { id: String },
+    LookupUpstream { id: String, client: String, path: String, method: String },
     EnableUpstream { id: String },
     DisableUpstream { id: String },
     AddRoute { id: String },

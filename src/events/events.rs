@@ -1,7 +1,9 @@
+use crate::modules::core::upstream::UpstreamAddress;
+
 #[derive(Clone, Debug)]
 pub(crate) enum Event {
     // Core events
-    UpstreamWasFound { cmd_id: String },
+    UpstreamWasFound { cmd_id: String, upstream_address: UpstreamAddress },
     UpstreamWasNotFound { cmd_id: String },
     UpstreamWasEnabled { cmd_id: String },
     UpstreamWasDisabled { cmd_id: String },
