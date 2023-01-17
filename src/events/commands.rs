@@ -1,3 +1,5 @@
+use crate::modules::core::upstream::UpstreamAddress;
+
 #[derive(Clone, Debug)]
 pub(crate) enum Command {
     // Core commands
@@ -8,8 +10,8 @@ pub(crate) enum Command {
     RemoveRoute { id: String },
 
     // Probe commands
-    StartProbe { id: String },
-    StopProbe { id: String },
+    StartProbe { id: String, upstream_address: UpstreamAddress },
+    StopProbe { id: String, upstream_address: UpstreamAddress },
 
     // Stats commands
     CountStat { id: String },

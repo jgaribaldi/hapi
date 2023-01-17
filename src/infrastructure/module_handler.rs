@@ -89,15 +89,11 @@ pub(crate) async fn handle_probes(
 
     while let Ok(command) = recv_cmd.recv().await {
         let maybe_event = match command {
-            Command::StartProbe { id } => {
-                // TODO: fix
-                let upstream_address = UpstreamAddress::FQDN(String::from("127.0.0.1"));
+            Command::StartProbe { id, upstream_address } => {
                 probe_controller.do_add_probe(&upstream_address);
                 Some(ProbeWasStarted { cmd_id: id })
             },
-            Command::StopProbe { id } => {
-                // TODO: fix
-                let upstream_address = UpstreamAddress::FQDN(String::from("127.0.0.1"));
+            Command::StopProbe { id, upstream_address } => {
                 probe_controller.do_remove_probe(&upstream_address);
                 Some(ProbeWasStopped { cmd_id: id })
             },
