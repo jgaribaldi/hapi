@@ -76,8 +76,8 @@ async fn main() -> Result<(), HapiError> {
     let addr = settings.server_socket_address()?;
     let server = Server::bind(&addr)
         .serve(make_service)
+        .with_graceful_shutdown(graceful_quit_handler())
         .await;
-        // .with_graceful_shutdown(graceful_quit_handler());
 
     // let make_api_service = make_service_fn(move |_conn| {
     //     let context = api_thread_safe_context.clone();
