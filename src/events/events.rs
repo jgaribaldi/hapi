@@ -10,8 +10,8 @@ pub(crate) enum Event {
     UpstreamWasDisabled { cmd_id: String },
     RouteWasAdded { cmd_id: String, route: Route },
     RouteWasNotAdded { cmd_id: String, route: Route },
-    RouteWasRemoved { cmd_id: String },
-    RouteWasNotRemoved { cmd_id: String },
+    RouteWasRemoved { cmd_id: String, route_id: String },
+    RouteWasNotRemoved { cmd_id: String, route_id: String },
 
     // Probe events
     ProbeWasStarted { cmd_id: String },

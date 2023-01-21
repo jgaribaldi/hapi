@@ -8,7 +8,7 @@ pub(crate) enum Command {
     EnableUpstream { id: String },
     DisableUpstream { id: String },
     AddRoute { id: String, route: Route },
-    RemoveRoute { id: String },
+    RemoveRoute { id: String, route_id: String },
 
     // Probe commands
     StartProbe { id: String, upstream_address: UpstreamAddress },

@@ -7,7 +7,7 @@ use tokio::time::sleep;
 use crate::errors::HapiError;
 use crate::events::commands::Command;
 use crate::events::events::Event;
-use crate::events::events::Event::{ProbeWasStarted, ProbeWasStopped, RouteWasAdded, RouteWasNotAdded, RouteWasRemoved, StatsWereFound, StatWasCounted, UpstreamWasDisabled, UpstreamWasEnabled, UpstreamWasFound, UpstreamWasNotFound};
+use crate::events::events::Event::{ProbeWasStarted, ProbeWasStopped, RouteWasAdded, RouteWasNotAdded, RouteWasNotRemoved, RouteWasRemoved, StatsWereFound, StatWasCounted, UpstreamWasDisabled, UpstreamWasEnabled, UpstreamWasFound, UpstreamWasNotFound};
 use crate::infrastructure::settings::HapiSettings;
 use crate::modules::core::context::Context;
 use crate::modules::core::upstream::UpstreamAddress;
@@ -35,13 +35,19 @@ pub(crate) async fn handle_core(mut recv_cmd: Receiver<Command>, send_evt: Sende
             Command::AddRoute { id, route } => {
                 match context.add_route(route.clone()) {
                     Ok(_) => Some(RouteWasAdded { cmd_id: id, route}),
-                    Err(e) => Some(RouteWasNotAdded { cmd_id: id, route }),
+                    Err(_e) => Some(RouteWasNotAdded { cmd_id: id, route }),
                 }
+            },
+            Command::RemoveRoute { id, route_id: String } => {
+                match context.remove_route(route_id.as_str()) {
+                    Ok(_) => Some(RouteWasRemoved { cmd_id: id, route_id }),
+                    Err(_e) => Some(RouteWasNotRemoved { cmd_id: id, route_id }),
+                }
+
             },
             // TODO fix
             Command::EnableUpstream { id } => Some(UpstreamWasEnabled { cmd_id: id }),
             Command::DisableUpstream { id } => Some(UpstreamWasDisabled { cmd_id: id }),
-            Command::RemoveRoute { id } => Some(RouteWasRemoved { cmd_id: id }),
             _ => None,
         };
 

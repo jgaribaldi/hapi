@@ -38,7 +38,7 @@
 - [] EnableUpstream
 - [] DisableUpstream
 - [x] AddRoute
-- [] RemoveRoute
+- [x] RemoveRoute
 
 ## 'Probe' Commands
 - [] StartProbe
@@ -56,8 +56,8 @@
 - [] UpstreamWasDisabled
 - [x] RouteWasAdded
 - [x] RouteWasNotAdded
-- [] RouteWasRemoved
-- [] RouteWasNotRemoved
+- [x] RouteWasRemoved
+- [x] RouteWasNotRemoved
 
 ## 'Probe' Events
 - [] ProbeWasStarted
