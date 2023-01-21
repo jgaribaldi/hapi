@@ -34,7 +34,7 @@
 - [] JSON file with routes
 
 ## 'Core' Commands
-- [] LookupUpstream
+- [x] LookupUpstream
 - [] EnableUpstream
 - [] DisableUpstream
 - [] AddRoute
@@ -50,8 +50,8 @@
 - [] LookupStats
 
 ## 'Core' Events
-- [] UpstreamWasFound
-- [] UpstreamWasNotFound
+- [x] UpstreamWasFound
+- [x] UpstreamWasNotFound
 - [] UpstreamWasEnabled
 - [] UpstreamWasDisabled
 - [] RouteWasAdded
