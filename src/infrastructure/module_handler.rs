@@ -4,6 +4,7 @@ use tokio::net::TcpStream;
 use tokio::sync::broadcast::{Receiver, Sender};
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
+use uuid::Uuid;
 use crate::errors::HapiError;
 use crate::events::commands::Command;
 use crate::events::events::Event;
@@ -38,16 +39,21 @@ pub(crate) async fn handle_core(mut recv_cmd: Receiver<Command>, send_evt: Sende
                     Err(_e) => Some(RouteWasNotAdded { cmd_id: id, route }),
                 }
             },
-            Command::RemoveRoute { id, route_id: String } => {
+            Command::RemoveRoute { id, route_id } => {
                 match context.remove_route(route_id.as_str()) {
                     Ok(_) => Some(RouteWasRemoved { cmd_id: id, route_id }),
                     Err(_e) => Some(RouteWasNotRemoved { cmd_id: id, route_id }),
                 }
 
             },
-            // TODO fix
-            Command::EnableUpstream { id } => Some(UpstreamWasEnabled { cmd_id: id }),
-            Command::DisableUpstream { id } => Some(UpstreamWasDisabled { cmd_id: id }),
+            Command::EnableUpstream { id, upstream_address } => {
+                context.enable_upstream_for_all_routes(&upstream_address);
+                Some(UpstreamWasEnabled { cmd_id: id, upstream_address })
+            },
+            Command::DisableUpstream { id, upstream_address } => {
+                context.disable_upstream_for_all_routes(&upstream_address);
+                Some(UpstreamWasDisabled { cmd_id: id, upstream_address })
+            },
             _ => None,
         };
 
@@ -181,8 +187,8 @@ async fn probe_upstream(upstream_address: String, send_cmd: Sender<Command>) {
                         upstream_address,
                     );
                     // send enable upstream command to core
-                    // TODO: fix
-                    let command = Command::EnableUpstream { id: String::from("12324") };
+                    let cmd_uuid = Uuid::new_v4();
+                    let command = Command::EnableUpstream { id: cmd_uuid.to_string(), upstream_address: UpstreamAddress::FQDN(upstream_address.clone()) };
                     match send_cmd.send(command) {
                         Ok(_) => log::debug!("Command sent"),
                         Err(e) => log::error!("Error sending command {}", e),
@@ -197,8 +203,8 @@ async fn probe_upstream(upstream_address: String, send_cmd: Sender<Command>) {
                         upstream_address,
                     );
                     // send disable upstream command to core
-                    // TODO: fix
-                    let command = Command::DisableUpstream { id: String::from("12324") };
+                    let cmd_uuid = Uuid::new_v4();
+                    let command = Command::DisableUpstream { id: cmd_uuid.to_string(), upstream_address: UpstreamAddress::FQDN(upstream_address.clone()) };
                     match send_cmd.send(command) {
                         Ok(_) => log::debug!("Command sent"),
                         Err(e) => log::error!("Error sending command {}", e),

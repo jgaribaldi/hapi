@@ -35,14 +35,13 @@
 
 ## 'Core' Commands
 - [x] LookupUpstream
-- [] EnableUpstream
-- [] DisableUpstream
+- [x] EnableUpstream
+- [x] DisableUpstream
 - [x] AddRoute
 - [x] RemoveRoute
 
 ## 'Probe' Commands
 - [] StartProbe
-- [] PauseProbe
 - [] StopProbe
 
 ## 'Stats' Commands
@@ -52,8 +51,8 @@
 ## 'Core' Events
 - [x] UpstreamWasFound
 - [x] UpstreamWasNotFound
-- [] UpstreamWasEnabled
-- [] UpstreamWasDisabled
+- [x] UpstreamWasEnabled
+- [x] UpstreamWasDisabled
 - [x] RouteWasAdded
 - [x] RouteWasNotAdded
 - [x] RouteWasRemoved
@@ -61,7 +60,6 @@
 
 ## 'Probe' Events
 - [] ProbeWasStarted
-- [] ProbeWasPaused
 - [] ProbeWasStopped
 
 ## 'Stats' Events

@@ -6,8 +6,8 @@ pub(crate) enum Event {
     // Core events
     UpstreamWasFound { cmd_id: String, upstream_address: UpstreamAddress },
     UpstreamWasNotFound { cmd_id: String },
-    UpstreamWasEnabled { cmd_id: String },
-    UpstreamWasDisabled { cmd_id: String },
+    UpstreamWasEnabled { cmd_id: String, upstream_address: UpstreamAddress },
+    UpstreamWasDisabled { cmd_id: String, upstream_address: UpstreamAddress },
     RouteWasAdded { cmd_id: String, route: Route },
     RouteWasNotAdded { cmd_id: String, route: Route },
     RouteWasRemoved { cmd_id: String, route_id: String },

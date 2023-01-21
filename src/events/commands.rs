@@ -5,8 +5,8 @@ use crate::modules::core::upstream::UpstreamAddress;
 pub(crate) enum Command {
     // Core commands
     LookupUpstream { id: String, client: String, path: String, method: String },
-    EnableUpstream { id: String },
-    DisableUpstream { id: String },
+    EnableUpstream { id: String, upstream_address: UpstreamAddress },
+    DisableUpstream { id: String, upstream_address: UpstreamAddress },
     AddRoute { id: String, route: Route },
     RemoveRoute { id: String, route_id: String },
 
