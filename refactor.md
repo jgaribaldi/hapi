@@ -37,7 +37,7 @@
 - [x] LookupUpstream
 - [] EnableUpstream
 - [] DisableUpstream
-- [] AddRoute
+- [x] AddRoute
 - [] RemoveRoute
 
 ## 'Probe' Commands
@@ -54,8 +54,8 @@
 - [x] UpstreamWasNotFound
 - [] UpstreamWasEnabled
 - [] UpstreamWasDisabled
-- [] RouteWasAdded
-- [] RouteWasNotAdded
+- [x] RouteWasAdded
+- [x] RouteWasNotAdded
 - [] RouteWasRemoved
 - [] RouteWasNotRemoved
 
