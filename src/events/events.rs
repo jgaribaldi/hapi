@@ -1,3 +1,4 @@
+use crate::modules::core::route::Route;
 use crate::modules::core::upstream::UpstreamAddress;
 
 #[derive(Clone, Debug)]
@@ -7,8 +8,8 @@ pub(crate) enum Event {
     UpstreamWasNotFound { cmd_id: String },
     UpstreamWasEnabled { cmd_id: String },
     UpstreamWasDisabled { cmd_id: String },
-    RouteWasAdded { cmd_id: String },
-    RouteWasNotAdded { cmd_id: String },
+    RouteWasAdded { cmd_id: String, route: Route },
+    RouteWasNotAdded { cmd_id: String, route: Route },
     RouteWasRemoved { cmd_id: String },
     RouteWasNotRemoved { cmd_id: String },
 

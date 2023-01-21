@@ -1,3 +1,4 @@
+use crate::modules::core::route::Route;
 use crate::modules::core::upstream::UpstreamAddress;
 
 #[derive(Clone, Debug)]
@@ -6,7 +7,7 @@ pub(crate) enum Command {
     LookupUpstream { id: String, client: String, path: String, method: String },
     EnableUpstream { id: String },
     DisableUpstream { id: String },
-    AddRoute { id: String },
+    AddRoute { id: String, route: Route },
     RemoveRoute { id: String },
 
     // Probe commands
