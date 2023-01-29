@@ -6,3 +6,4 @@ pub mod settings;
 pub mod stats;
 pub mod probe;
 pub(crate) mod module_handler;
+pub(crate) mod probe_handler;

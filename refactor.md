@@ -23,7 +23,7 @@
 - [] Remove old process structure
 
 ## Extract probe handler
-- [] Create a separate file for it
+- [x] Create a separate file for it
 - [] Refactor it so it only reacts to certain events, as opposed to receive commands
 
 ## Refactor Interfaces
