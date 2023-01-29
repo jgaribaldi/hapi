@@ -1,4 +1,5 @@
 use std::str::FromStr;
+use futures_util::TryFutureExt;
 use hyper::{Body, header, Method, Request, Response};
 use tokio::sync::broadcast::error::SendError;
 use tokio::sync::broadcast::{Receiver, Sender};
@@ -29,7 +30,14 @@ pub(crate) async fn handle_api(
                     let content = serde_json::to_string(&routes).unwrap();
                     json(content)
                 },
-                Some(r_id) => not_found(), // TODO: remove
+                Some(r_id) => {
+                    if let Some(r) = get_route(*r_id, send_cmd, recv_evt).await {
+                        let content = serde_json::to_string(&r).unwrap(); // TODO: remove unwrap
+                        json(content)
+                    } else {
+                        not_found()
+                    }
+                },
             }
         },
         (ApiResource::Route, &Method::POST) => {
@@ -106,8 +114,47 @@ async fn get_routes_from_core(
     result
 }
 
-fn get_route() {
+async fn get_route(
+    route_id: &str,
+    send_cmd: Sender<Command>,
+    mut recv_evt: Receiver<Event>,
+) -> Option<crate::infrastructure::serializable_model::Route> {
+    get_route_from_core(route_id, send_cmd, recv_evt).await
+        .map(|r| crate::infrastructure::serializable_model::Route::from(r))
+}
 
+async fn get_route_from_core(
+    route_id: &str,
+    send_cmd: Sender<Command>,
+    mut recv_evt: Receiver<Event>,
+) -> Option<Route> {
+    let cmd_uuid = Uuid::new_v4();
+    let command = Command::LookupRoute { id: cmd_uuid.to_string(), route_id: route_id.to_string() };
+    match send_cmd.send(command) {
+        Ok(_) => log::debug!("Command sent"),
+        Err(e) => log::error!("Error sending command {}", e),
+    }
+
+    let mut result = None;
+    while let Ok(event) = recv_evt.recv().await {
+        log::debug!("Received event {:?}", event);
+        match event {
+            Event::RouteWasFound { cmd_id, route} => {
+                if cmd_id == cmd_uuid.to_string() {
+                    result = Some(route);
+                    break
+                }
+            },
+            Event::RouteWasNotFound { cmd_id, route_id } => {
+                if cmd_id == cmd_uuid.to_string() {
+                    break
+                }
+            },
+            _ => {},
+        }
+    }
+
+    result
 }
 
 fn ok() -> Response<Body> {

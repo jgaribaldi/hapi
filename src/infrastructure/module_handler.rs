@@ -5,9 +5,10 @@ use uuid::Uuid;
 use crate::errors::HapiError;
 use crate::events::commands::Command;
 use crate::events::events::Event;
-use crate::events::events::Event::{RoutesWereFound, RouteWasAdded, RouteWasNotAdded, RouteWasNotRemoved, RouteWasRemoved, StatsWereFound, StatWasCounted, UpstreamWasDisabled, UpstreamWasEnabled, UpstreamWasFound, UpstreamWasNotFound};
+use crate::events::events::Event::{RoutesWereFound, RouteWasAdded, RouteWasFound, RouteWasNotAdded, RouteWasNotFound, RouteWasNotRemoved, RouteWasRemoved, StatsWereFound, StatWasCounted, UpstreamWasDisabled, UpstreamWasEnabled, UpstreamWasFound, UpstreamWasNotFound};
 use crate::infrastructure::settings::HapiSettings;
 use crate::modules::core::context::Context;
+use crate::modules::core::route::Route;
 use crate::modules::stats::Stats;
 
 pub(crate) async fn handle_core(
@@ -59,6 +60,12 @@ pub(crate) async fn handle_core(
                     all_routes.push(r.clone());
                 }
                 Some(RoutesWereFound { cmd_id: id, routes: all_routes })
+            },
+            Command::LookupRoute { id, route_id } => {
+                match context.get_route_by_id(route_id.as_str()) {
+                    Some(route) => Some(RouteWasFound { cmd_id: id, route: route.clone() }),
+                    None => Some(RouteWasNotFound { cmd_id: id, route_id }),
+                }
             },
             _ => None,
         };
