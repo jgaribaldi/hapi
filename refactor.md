@@ -24,7 +24,7 @@
 
 ## Extract probe handler
 - [x] Create a separate file for it
-- [] Refactor it so it only reacts to certain events, as opposed to receive commands
+- [x] Refactor it so it only reacts to certain events, as opposed to receive commands
 
 ## Refactor Interfaces
 - [] API

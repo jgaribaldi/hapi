@@ -34,7 +34,7 @@ pub(crate) async fn handle_core(mut recv_cmd: Receiver<Command>, send_evt: Sende
             },
             Command::RemoveRoute { id, route_id } => {
                 match context.remove_route(route_id.as_str()) {
-                    Ok(_) => Some(RouteWasRemoved { cmd_id: id, route_id }),
+                    Ok(removed_route) => Some(RouteWasRemoved { cmd_id: id, route: removed_route }),
                     Err(_e) => Some(RouteWasNotRemoved { cmd_id: id, route_id }),
                 }
 

@@ -7,41 +7,38 @@ use tokio::time::sleep;
 use uuid::Uuid;
 use crate::events::commands::Command;
 use crate::events::events::Event;
-use crate::events::events::Event::{ProbeWasStarted, ProbeWasStopped};
 use crate::modules::core::upstream::UpstreamAddress;
 use crate::modules::probe::Poller;
 
 pub(crate) async fn handle_probes(
-    mut recv_cmd: Receiver<Command>,
-    send_evt: Sender<Event>,
+    mut recv_evt: Receiver<Event>,
     send_cmd: Sender<Command>,
+    _send_evt: Sender<Event>,
 ) {
     let mut probe_controller = ProbeController::build(send_cmd);
 
-    while let Ok(command) = recv_cmd.recv().await {
-        let maybe_event = match command {
-            Command::StartProbe { id, upstream_address } => {
-                probe_controller.do_add_probe(&upstream_address);
-                Some(ProbeWasStarted { cmd_id: id })
+    while let Ok(event) = recv_evt.recv().await {
+        match event {
+            Event::RouteWasAdded { cmd_id, route } => {
+                for upstream in route.upstreams {
+                    probe_controller.add_probe(&upstream.address);
+                }
+                // TODO: send events for added probes
             },
-            Command::StopProbe { id, upstream_address } => {
-                probe_controller.do_remove_probe(&upstream_address);
-                Some(ProbeWasStopped { cmd_id: id })
+            Event::RouteWasRemoved { cmd_id, route } => {
+                for upstream in route.upstreams {
+                    probe_controller.remove_probe(&upstream.address);
+                }
+                // TODO: send events for removed probes
             },
-            _ => None,
-        };
-
-        if let Some(event) = maybe_event {
-            match send_evt.send(event) {
-                Ok(_) => log::debug!("Event sent"),
-                Err(e) => log::error!("Error sending event {}", e),
-            }
+            _ => {},
         }
     }
 }
 
 struct ProbeController {
     probes_status: HashMap<UpstreamAddress, JoinHandle<()>>,
+    upstream_counter: HashMap<UpstreamAddress, u64>, // how many routes point to this upstream
     send_cmd: Sender<Command>,
 }
 
@@ -49,7 +46,42 @@ impl ProbeController {
     fn build(send_cmd: Sender<Command>) -> Self {
         ProbeController {
             probes_status: HashMap::new(),
+            upstream_counter: HashMap::new(),
             send_cmd,
+        }
+    }
+
+    fn add_probe(&mut self, to_add: &UpstreamAddress) -> Option<UpstreamAddress> {
+        if let Some(current_count) = self.upstream_counter.get_mut(to_add) {
+            // we are already probing for the given upstream, just know that there's another route
+            // using the same upstream
+            log::debug!("Upstream {} is already being probed with count {}. Increasing 1", to_add, current_count);
+            *current_count = *current_count + 1;
+            None
+        } else {
+            // we need to start probing the given upstream
+            log::debug!("Upstream {} is not being probed, launching new probe", to_add);
+            self.do_add_probe(to_add);
+            self.upstream_counter.insert(to_add.clone(), 1);
+            Some(to_add.clone())
+        }
+    }
+
+    fn remove_probe(&mut self, to_remove: &UpstreamAddress) -> Option<UpstreamAddress> {
+        if let Some(current_count) = self.upstream_counter.get_mut(to_remove) {
+            if *current_count == 1 {
+                log::debug!("Current count for upstream {} is 1, removing", to_remove);
+                self.do_remove_probe(to_remove);
+                self.upstream_counter.remove(to_remove);
+                Some(to_remove.clone())
+            } else {
+                log::debug!("Current count for upstream {} is {}, decreasing counter", to_remove, current_count);
+                *current_count = *current_count - 1;
+                None
+            }
+        } else {
+            log::warn!("Given probe to remove {} does not exist in the probe controller state", to_remove);
+            None
         }
     }
 

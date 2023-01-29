@@ -55,11 +55,11 @@ pub(crate) mod context {
 
         /// Removes the given route from this context
         /// Returns an error if the route id doesn't exist in the context
-        pub fn remove_route(&mut self, route_id: &str) -> Result<(), HapiError> {
+        pub fn remove_route(&mut self, route_id: &str) -> Result<Route, HapiError> {
             match self.route_index.get(route_id) {
                 Some(route_index) => {
-                    self.do_remove_route(*route_index);
-                    Ok(())
+                    let removed_route = self.do_remove_route(*route_index);
+                    Ok(removed_route)
                 }
                 None => Err(HapiError::RouteNotExists),
             }
@@ -120,12 +120,13 @@ pub(crate) mod context {
             self.rebuild_route_index();
         }
 
-        fn do_remove_route(&mut self, route_index: usize) {
-            self.routes.remove(route_index);
+        fn do_remove_route(&mut self, route_index: usize) -> Route {
+            let removed_route = self.routes.remove(route_index);
 
             self.rebuild_routing_table();
             self.rebuild_upstreams();
             self.rebuild_route_index();
+            removed_route
         }
 
         fn rebuild_routing_table(&mut self) {
@@ -668,6 +669,8 @@ pub(crate) mod route {
 }
 
 pub(crate) mod upstream {
+    use std::fmt::{Display, Formatter};
+
     #[derive(Clone, Debug, Eq, PartialEq, Hash)]
     pub enum UpstreamAddress {
         FQDN(String),
@@ -682,6 +685,12 @@ pub(crate) mod upstream {
                     format!("{}.{}.{}.{}:{}", ipv4.0, ipv4.1, ipv4.2, ipv4.3, ipv4.4)
                 }
             }
+        }
+    }
+
+    impl Display for UpstreamAddress {
+        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+            write!(f, "{:?}", self)
         }
     }
 

@@ -48,11 +48,11 @@ async fn main() -> Result<(), HapiError> {
     });
 
     // probes handler
-    let send_evt3 = send_evt.clone();
+    let recv_evt3 = send_evt.subscribe();
     let send_cmd3 = send_cmd.clone();
-    let recv_cmd3 = send_cmd.subscribe();
+    let send_evt3 = send_evt.clone();
     tokio::spawn(async move {
-        handle_probes(recv_cmd3, send_evt3, send_cmd3).await;
+        handle_probes(recv_evt3, send_cmd3,send_evt3).await;
     });
 
     let settings = HapiSettings::load_from_file("settings.json")?;

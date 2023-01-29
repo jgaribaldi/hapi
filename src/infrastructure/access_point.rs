@@ -54,7 +54,7 @@ fn do_add_route(context: Arc<Mutex<Context>>, route_to_add: Route) -> Result<(),
     ctx.add_route(r)
 }
 
-fn do_delete_route(context: Arc<Mutex<Context>>, route_id: &str) -> Result<(), HapiError> {
+fn do_delete_route(context: Arc<Mutex<Context>>, route_id: &str) -> Result<crate::modules::core::route::Route, HapiError> {
     let mut ctx = context.lock().unwrap();
     ctx.remove_route(route_id)
 }
