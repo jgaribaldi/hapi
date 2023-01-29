@@ -22,6 +22,10 @@
 - [x] Perform upstream enable and disable through commands and events
 - [] Remove old process structure
 
+## Extract probe handler
+- [] Create a separate file for it
+- [] Refactor it so it only reacts to certain events, as opposed to receive commands
+
 ## Refactor Interfaces
 - [] API
 
