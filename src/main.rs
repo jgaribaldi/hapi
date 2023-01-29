@@ -13,6 +13,7 @@ use crate::infrastructure::module_handler::{handle_core, handle_stats};
 use crate::infrastructure::probe_handler::handle_probes;
 use crate::infrastructure::settings::HapiSettings;
 use crate::infrastructure::processor::process_request;
+use crate::interfaces::api::handle_api;
 use crate::modules::core::context::Context;
 
 mod errors;
@@ -79,27 +80,33 @@ async fn main() -> Result<(), HapiError> {
     let addr = settings.server_socket_address()?;
     let server = Server::bind(&addr)
         .serve(make_service)
-        .with_graceful_shutdown(graceful_quit_handler())
-        .await;
+        .with_graceful_shutdown(graceful_quit_handler());
 
-    // let make_api_service = make_service_fn(move |_conn| {
+    let send_cmd5 = send_cmd.clone();
+    let send_evt5 = send_evt.clone();
+    let make_api_service = make_service_fn(move |_conn| {
     //     let context = api_thread_safe_context.clone();
     //     let stats = api_thread_safe_stats.clone();
     //     let main_cmd_tx = main_cmd_tx.clone();
-    //     let service = service_fn(move |request| {
+        let send_cmd5 = send_cmd.clone();
+        let send_evt5 = send_evt.clone();
+        let service = service_fn(move |request| {
+            let send_cmd5 = send_cmd5.clone();
+            let recv_evt5 = send_evt5.subscribe();
+            handle_api(request, send_cmd5, recv_evt5)
     //         let context = context.clone();
     //         let stats = stats.clone();
     //         api::process_request(context, stats, request, main_cmd_tx.clone())
-    //     });
-    //     async move { Ok::<_, HapiError>(service) }
-    // });
+        });
+        async move { Ok::<_, HapiError>(service) }
+    });
 
-    // let api_addr = settings.api_socket_address()?;
-    // let api_server = Server::bind(&api_addr)
-    //     .serve(make_api_service)
-    //     .with_graceful_shutdown(api_graceful_quit_handler());
+    let api_addr = settings.api_socket_address()?;
+    let api_server = Server::bind(&api_addr)
+        .serve(make_api_service)
+        .with_graceful_shutdown(graceful_quit_handler());
 
-    // let _ret = futures_util::future::join(server, server).await;
+    let _ret = futures_util::future::join(server, api_server).await;
     Ok(())
 }
 

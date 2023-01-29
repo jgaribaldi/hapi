@@ -12,6 +12,9 @@ pub(crate) enum Event {
     RouteWasNotAdded { cmd_id: String, route: Route },
     RouteWasRemoved { cmd_id: String, route: Route },
     RouteWasNotRemoved { cmd_id: String, route_id: String },
+    RoutesWereFound { cmd_id: String, routes: Vec<Route> },
+    RouteWasFound { cmd_id: String, route: Route },
+    RouteWasNotFound { cmd_id: String, route_id: String },
 
     // Probe events
     ProbeWasStarted { cmd_id: String },

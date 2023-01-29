@@ -5,7 +5,7 @@ use uuid::Uuid;
 use crate::errors::HapiError;
 use crate::events::commands::Command;
 use crate::events::events::Event;
-use crate::events::events::Event::{RouteWasAdded, RouteWasNotAdded, RouteWasNotRemoved, RouteWasRemoved, StatsWereFound, StatWasCounted, UpstreamWasDisabled, UpstreamWasEnabled, UpstreamWasFound, UpstreamWasNotFound};
+use crate::events::events::Event::{RoutesWereFound, RouteWasAdded, RouteWasNotAdded, RouteWasNotRemoved, RouteWasRemoved, StatsWereFound, StatWasCounted, UpstreamWasDisabled, UpstreamWasEnabled, UpstreamWasFound, UpstreamWasNotFound};
 use crate::infrastructure::settings::HapiSettings;
 use crate::modules::core::context::Context;
 use crate::modules::stats::Stats;
@@ -52,6 +52,13 @@ pub(crate) async fn handle_core(
             Command::DisableUpstream { id, upstream_address } => {
                 context.disable_upstream_for_all_routes(&upstream_address);
                 Some(UpstreamWasDisabled { cmd_id: id, upstream_address })
+            },
+            Command::LookupAllRoutes { id} => {
+                let mut all_routes = Vec::new();
+                for r in context.get_all_routes() {
+                    all_routes.push(r.clone());
+                }
+                Some(RoutesWereFound { cmd_id: id, routes: all_routes })
             },
             _ => None,
         };

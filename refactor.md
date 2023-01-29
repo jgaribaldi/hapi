@@ -29,6 +29,11 @@
 ## Refactor Interfaces
 - [] API
 
+## APIs
+- [] Routes API
+- [] Upstreams API
+- [] Stats API
+
 ## Create app settings
 - [] App's IP address and port
 - [] API's IP address and port
