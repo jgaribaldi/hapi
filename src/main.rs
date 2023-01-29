@@ -34,9 +34,11 @@ async fn main() -> Result<(), HapiError> {
     // core handler
     let send_evt1 = send_evt.clone();
     let recv_cmd1 = send_cmd.subscribe();
+    let send_cmd1 = send_cmd.clone();
     tokio::spawn(async move {
         let send_evt1 = send_evt1.clone();
-        handle_core(recv_cmd1, send_evt1).await;
+        let send_cmd1 = send_cmd1.clone();
+        handle_core(recv_cmd1, send_evt1, send_cmd1).await;
     });
 
     // stats handler

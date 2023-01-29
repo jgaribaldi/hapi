@@ -1,4 +1,6 @@
 use tokio::sync::broadcast::{Receiver, Sender};
+use tokio::sync::broadcast::error::SendError;
+use uuid::Uuid;
 
 use crate::errors::HapiError;
 use crate::events::commands::Command;
@@ -8,13 +10,17 @@ use crate::infrastructure::settings::HapiSettings;
 use crate::modules::core::context::Context;
 use crate::modules::stats::Stats;
 
-pub(crate) async fn handle_core(mut recv_cmd: Receiver<Command>, send_evt: Sender<Event>) {
+pub(crate) async fn handle_core(
+    mut recv_cmd: Receiver<Command>,
+    send_evt: Sender<Event>,
+    send_cmd: Sender<Command>,
+) {
     // TODO: remove .unwrap()
     let settings = HapiSettings::load_from_file("settings.json").unwrap();
     log::info!("Settings {:?}", settings);
 
     // TODO: remove .unwrap()
-    let mut context = build_context_from_settings(&settings).unwrap();
+    let mut context = build_context_from_settings(&settings, send_cmd).unwrap();
 
     while let Ok(command) = recv_cmd.recv().await {
         log::debug!("Received command {:?}", command);
@@ -59,10 +65,14 @@ pub(crate) async fn handle_core(mut recv_cmd: Receiver<Command>, send_evt: Sende
     }
 }
 
-fn build_context_from_settings(settings: &HapiSettings) -> Result<Context, HapiError> {
+fn build_context_from_settings(settings: &HapiSettings, send_cmd: Sender<Command>) -> Result<Context, HapiError> {
     let mut context = Context::build_empty();
     for r in settings.routes() {
-        context.add_route(r)?;
+        let command = Command::AddRoute { id: Uuid::new_v4().to_string(), route: r.clone() };
+        match send_cmd.send(command) {
+            Ok(_) => log::debug!("Command sent"),
+            Err(e) => log::error!("Error sending command {}", e),
+        }
     }
     Ok(context)
 }
