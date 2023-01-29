@@ -22,28 +22,24 @@ pub(crate) async fn handle_api(
     let resource = ApiResource::from_str(path_parts[1]).unwrap();
     let resource_id = path_parts.get(2);
 
-    let response = match (resource, request.method()) {
-        (ApiResource::Route, &Method::GET) => {
-            match resource_id {
-                None => {
-                    let routes = get_routes(send_cmd, recv_evt).await;
-                    let content = serde_json::to_string(&routes).unwrap();
-                    json(content)
-                },
-                Some(r_id) => {
-                    if let Some(r) = get_route(*r_id, send_cmd, recv_evt).await {
-                        let content = serde_json::to_string(&r).unwrap(); // TODO: remove unwrap
-                        json(content)
-                    } else {
-                        not_found()
-                    }
-                },
+    let response = match (resource, request.method(), resource_id) {
+        (ApiResource::Route, &Method::GET, None) => {
+            let routes = get_routes(send_cmd, recv_evt).await;
+            let content = serde_json::to_string(&routes).unwrap();
+            json(content)
+        },
+        (ApiResource::Route, &Method::GET, Some(r_id)) => {
+            if let Some(r) = get_route(*r_id, send_cmd, recv_evt).await {
+                let content = serde_json::to_string(&r).unwrap(); // TODO: remove unwrap
+                json(content)
+            } else {
+                not_found()
             }
         },
-        (ApiResource::Route, &Method::POST) => {
+        (ApiResource::Route, &Method::POST, None) => {
             not_found() // TODO: remove
         },
-        (ApiResource::Route, &Method::DELETE) => {
+        (ApiResource::Route, &Method::DELETE, Some(r_id)) => {
             not_found() // TODO: remove
         },
         _ => {
