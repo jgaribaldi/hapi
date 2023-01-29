@@ -29,6 +29,9 @@
 ## Refactor Interfaces
 - [] API
 
+## Abstractions
+- [x] Create Core client to abstract send commands and listen to events
+
 ## APIs
 - [] Routes API
 - [] Upstreams API

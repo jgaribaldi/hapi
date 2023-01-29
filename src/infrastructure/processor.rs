@@ -8,6 +8,7 @@ use uuid::Uuid;
 use crate::HapiError;
 use crate::events::commands::Command;
 use crate::events::events::Event;
+use crate::infrastructure::core_handler::CoreClient;
 use crate::modules::core::upstream::UpstreamAddress;
 
 pub(crate) async fn process_request(
@@ -19,7 +20,9 @@ pub(crate) async fn process_request(
     let method = request.method();
     let path = request.uri().path();
 
-    let maybe_upstream = search_upstream(client.as_str(), path, method.as_str(), send_cmd, recv_evt).await;
+    let mut core_client = CoreClient::build(send_cmd, recv_evt);
+    // TODO: remove the following unwrap
+    let maybe_upstream = core_client.search_upstream(client.as_str(), path, method.as_str()).await.unwrap();
     match maybe_upstream {
         Some(upstream_address) => {
             let upstream_uri = Uri::from_str(absolute_url_for(&upstream_address, path).as_str())?;
@@ -42,41 +45,6 @@ pub(crate) async fn process_request(
             Ok(response)
         }
     }
-}
-
-async fn search_upstream(
-    client: &str,
-    path: &str,
-    method: &str,
-    send_cmd: Sender<Command>,
-    mut recv_evt: Receiver<Event>,
-) -> Option<UpstreamAddress> {
-    let cmd_uuid = Uuid::new_v4();
-    let command = Command::LookupUpstream { id: cmd_uuid.to_string(), client: client.to_string(), path: path.to_string(), method: method.to_string() };
-    match send_cmd.send(command) {
-        Ok(_) => log::debug!("Command sent"),
-        Err(e) => log::error!("Error sending command {}", e),
-    };
-
-    let mut result = None;
-    while let Ok(event) = recv_evt.recv().await {
-        log::debug!("Received event {:?}", event);
-        match event {
-            Event::UpstreamWasFound { cmd_id, upstream_address } => {
-                if cmd_id == cmd_uuid.to_string() {
-                    result = Some(upstream_address.clone());
-                    break
-                }
-            },
-            Event::UpstreamWasNotFound { cmd_id } => {
-                if cmd_id == cmd_uuid.to_string() {
-                    result = None
-                }
-            },
-            _ => {},
-        }
-    };
-    result
 }
 
 fn absolute_url_for(upstream: &UpstreamAddress, original_path: &str) -> String {

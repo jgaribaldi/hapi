@@ -3,6 +3,8 @@ use hyper::Error;
 use log::SetLoggerError;
 use std::fmt::{Display, Formatter};
 use std::net::AddrParseError;
+use tokio::sync::broadcast::error::SendError;
+use crate::events::commands::Command;
 
 #[derive(Debug)]
 pub enum HapiError {
@@ -14,6 +16,7 @@ pub enum HapiError {
     AddressParseError(AddrParseError),
     RouteAlreadyExists,
     RouteNotExists,
+    MessageSendError(SendError<Command>),
 }
 
 impl Display for HapiError {
@@ -26,8 +29,11 @@ impl Display for HapiError {
             HapiError::SerdeError(serde_error) => write!(f, "{:?}", serde_error),
             HapiError::AddressParseError(address_parse_error) => {
                 write!(f, "{:?}", address_parse_error)
-            }
+            },
             HapiError::RouteAlreadyExists | HapiError::RouteNotExists => todo!(),
+            HapiError::MessageSendError(tokio_send_msg_error) => {
+                write!(f, "{:?}", tokio_send_msg_error)
+            },
         }
     }
 }
@@ -67,5 +73,11 @@ impl From<serde_json::Error> for HapiError {
 impl From<AddrParseError> for HapiError {
     fn from(address_parse_error: AddrParseError) -> Self {
         HapiError::AddressParseError(address_parse_error)
+    }
+}
+
+impl From<SendError<Command>> for HapiError {
+    fn from(tokio_send_msg_error: SendError<Command>) -> Self {
+        HapiError::MessageSendError(tokio_send_msg_error)
     }
 }

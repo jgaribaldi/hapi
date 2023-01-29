@@ -9,10 +9,11 @@ use tokio::sync::broadcast;
 use crate::errors::HapiError;
 use crate::events::commands::Command;
 use crate::events::events::Event;
-use crate::infrastructure::module_handler::{handle_core, handle_stats};
+use crate::infrastructure::core_handler::handle_core;
 use crate::infrastructure::probe_handler::handle_probes;
 use crate::infrastructure::settings::HapiSettings;
 use crate::infrastructure::processor::process_request;
+use crate::infrastructure::stats_handler::handle_stats;
 use crate::interfaces::api::handle_api;
 use crate::modules::core::context::Context;
 

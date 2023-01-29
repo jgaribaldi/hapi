@@ -9,6 +9,7 @@ use crate::events::events::Event::{RoutesWereFound, RouteWasAdded, RouteWasFound
 use crate::infrastructure::settings::HapiSettings;
 use crate::modules::core::context::Context;
 use crate::modules::core::route::Route;
+use crate::modules::core::upstream::UpstreamAddress;
 use crate::modules::stats::Stats;
 
 pub(crate) async fn handle_core(
@@ -79,6 +80,93 @@ pub(crate) async fn handle_core(
     }
 }
 
+pub(crate) struct CoreClient {
+    send_cmd: Sender<Command>,
+    recv_evt: Receiver<Event>,
+}
+
+impl CoreClient {
+    pub fn build(send_cmd: Sender<Command>, recv_evt: Receiver<Event>) -> Self {
+        Self {
+            send_cmd,
+            recv_evt,
+        }
+    }
+
+    pub async fn get_routes(&mut self) -> Result<Vec<Route>, HapiError> {
+        let cmd_uuid = Uuid::new_v4();
+        let command = Command::LookupAllRoutes { id: cmd_uuid.to_string() };
+        self.send_cmd.send(command)?;
+
+        let mut result = Vec::new();
+        while let Ok(event) = self.recv_evt.recv().await {
+            log::debug!("Received event {:?}", event);
+            match event {
+                RoutesWereFound { cmd_id, routes } => {
+                    if cmd_id == cmd_uuid.to_string() {
+                        result = routes;
+                        break
+                    }
+                },
+                _ => {},
+            }
+        };
+        Ok(result)
+    }
+
+    pub async fn get_route_by_id(&mut self, route_id: &str) -> Result<Option<Route>, HapiError> {
+        let cmd_uuid = Uuid::new_v4();
+        let command = Command::LookupRoute { id: cmd_uuid.to_string(), route_id: route_id.to_string() };
+        self.send_cmd.send(command)?;
+
+        let mut result = None;
+        while let Ok(event) = self.recv_evt.recv().await {
+            log::debug!("Received event {:?}", event);
+            match event {
+                RouteWasFound { cmd_id, route} => {
+                    if cmd_id == cmd_uuid.to_string() {
+                        result = Some(route);
+                        break
+                    }
+                },
+                RouteWasNotFound { cmd_id, route_id } => {
+                    if cmd_id == cmd_uuid.to_string() {
+                        break
+                    }
+                },
+                _ => {},
+            }
+        };
+        Ok(result)
+    }
+
+    pub async fn search_upstream(&mut self, client: &str, path: &str, method: &str) -> Result<Option<UpstreamAddress>, HapiError> {
+        let cmd_uuid = Uuid::new_v4();
+        let command = Command::LookupUpstream { id: cmd_uuid.to_string(), client: client.to_string(), path: path.to_string(), method: method.to_string() };
+        self.send_cmd.send(command)?;
+
+        let mut result = None;
+        while let Ok(event) = self.recv_evt.recv().await {
+            log::debug!("Received event {:?}", event);
+            match event {
+                UpstreamWasFound { cmd_id, upstream_address } => {
+                    if cmd_id == cmd_uuid.to_string() {
+                        result = Some(upstream_address.clone());
+                        break
+                    }
+                },
+                UpstreamWasNotFound { cmd_id } => {
+                    if cmd_id == cmd_uuid.to_string() {
+                        result = None
+                    }
+                },
+                _ => {},
+            }
+        };
+        Ok(result)
+    }
+}
+
 fn build_context_from_settings(settings: &HapiSettings, send_cmd: Sender<Command>) -> Result<Context, HapiError> {
     let mut context = Context::build_empty();
     for r in settings.routes() {
@@ -91,25 +179,3 @@ fn build_context_from_settings(settings: &HapiSettings, send_cmd: Sender<Command
     Ok(context)
 }
 
-pub(crate) async fn handle_stats(mut recv_cmd: Receiver<Command>, send_evt: Sender<Event>) {
-    let mut stats = Stats::build();
-
-    while let Ok(command) = recv_cmd.recv().await {
-        let maybe_event = match command {
-            Command::CountStat { id } => {
-                // TODO: fix
-                stats.count_request("client", "method", "path", "upstream");
-                Some(StatWasCounted { cmd_id: id })
-            },
-            Command::LookupStats { id } => Some(StatsWereFound { cmd_id: id }),
-            _ => None,
-        };
-
-        if let Some(event) = maybe_event {
-            match send_evt.send(event) {
-                Ok(_) => log::debug!("Event sent"),
-                Err(e) => log::error!("Error sending event {}", e),
-            }
-        }
-    }
-}

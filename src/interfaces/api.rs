@@ -7,6 +7,7 @@ use uuid::Uuid;
 use crate::errors::HapiError;
 use crate::events::commands::Command;
 use crate::events::events::Event;
+use crate::infrastructure::core_handler::CoreClient;
 use crate::modules::core::route::Route;
 
 pub(crate) async fn handle_api(
@@ -75,37 +76,12 @@ async fn get_routes(
     send_cmd: Sender<Command>,
     mut recv_evt: Receiver<Event>,
 ) -> Vec<crate::infrastructure::serializable_model::Route> {
-    let found_routes = get_routes_from_core(send_cmd, recv_evt).await;
+    let mut core_client = CoreClient::build(send_cmd, recv_evt);
+    let found_routes = core_client.get_routes().await.unwrap(); // TODO: remove unwrap
+
     let mut result = Vec::new();
     for r in found_routes {
         result.push(crate::infrastructure::serializable_model::Route::from(r))
-    }
-    result
-}
-
-async fn get_routes_from_core(
-    send_cmd: Sender<Command>,
-    mut recv_evt: Receiver<Event>,
-) -> Vec<Route> {
-    let cmd_uuid = Uuid::new_v4();
-    let command = Command::LookupAllRoutes { id: cmd_uuid.to_string() };
-    match send_cmd.send(command) {
-        Ok(_) => log::debug!("Command sent"),
-        Err(e) => log::error!("Error sending command {}", e),
-    }
-
-    let mut result = Vec::new();
-    while let Ok(event) = recv_evt.recv().await {
-        log::debug!("Received event {:?}", event);
-        match event {
-            Event::RoutesWereFound { cmd_id, routes } => {
-                if cmd_id == cmd_uuid.to_string() {
-                    result = routes;
-                    break
-                }
-            },
-            _ => {},
-        }
     }
     result
 }
@@ -115,42 +91,9 @@ async fn get_route(
     send_cmd: Sender<Command>,
     mut recv_evt: Receiver<Event>,
 ) -> Option<crate::infrastructure::serializable_model::Route> {
-    get_route_from_core(route_id, send_cmd, recv_evt).await
+    let mut core_client = CoreClient::build(send_cmd, recv_evt);
+    core_client.get_route_by_id(route_id).await.unwrap() // TODO: remove unwrap
         .map(|r| crate::infrastructure::serializable_model::Route::from(r))
-}
-
-async fn get_route_from_core(
-    route_id: &str,
-    send_cmd: Sender<Command>,
-    mut recv_evt: Receiver<Event>,
-) -> Option<Route> {
-    let cmd_uuid = Uuid::new_v4();
-    let command = Command::LookupRoute { id: cmd_uuid.to_string(), route_id: route_id.to_string() };
-    match send_cmd.send(command) {
-        Ok(_) => log::debug!("Command sent"),
-        Err(e) => log::error!("Error sending command {}", e),
-    }
-
-    let mut result = None;
-    while let Ok(event) = recv_evt.recv().await {
-        log::debug!("Received event {:?}", event);
-        match event {
-            Event::RouteWasFound { cmd_id, route} => {
-                if cmd_id == cmd_uuid.to_string() {
-                    result = Some(route);
-                    break
-                }
-            },
-            Event::RouteWasNotFound { cmd_id, route_id } => {
-                if cmd_id == cmd_uuid.to_string() {
-                    break
-                }
-            },
-            _ => {},
-        }
-    }
-
-    result
 }
 
 fn ok() -> Response<Body> {
