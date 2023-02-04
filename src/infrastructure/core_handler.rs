@@ -1,3 +1,4 @@
+use futures_util::future::err;
 use tokio::sync::broadcast::{Receiver, Sender};
 use tokio::sync::broadcast::error::SendError;
 use uuid::Uuid;
@@ -36,8 +37,8 @@ pub(crate) async fn handle_core(
             },
             Command::AddRoute { id, route } => {
                 match context.add_route(route.clone()) {
-                    Ok(_) => Some(RouteWasAdded { cmd_id: id, route}),
-                    Err(_e) => Some(RouteWasNotAdded { cmd_id: id, route }),
+                    Ok(_) => Some(RouteWasAdded { cmd_id: id, route }),
+                    Err(e) => Some(RouteWasNotAdded { cmd_id: id, route }),
                 }
             },
             Command::RemoveRoute { id, route_id } => {
@@ -157,13 +158,39 @@ impl CoreClient {
                 },
                 UpstreamWasNotFound { cmd_id } => {
                     if cmd_id == cmd_uuid.to_string() {
-                        result = None
+                        break
                     }
                 },
                 _ => {},
             }
         };
         Ok(result)
+    }
+
+    pub async fn add_route(&mut self, route: Route) -> Result<(), HapiError> {
+        let cmd_uuid = Uuid::new_v4();
+        let command = Command::AddRoute { id: cmd_uuid.to_string(), route };
+        self.send_cmd.send(command)?;
+
+        let mut result = Ok(());
+        while let Ok(event) = self.recv_evt.recv().await {
+            log::debug!("Received event {:?}", event);
+            match event {
+                RouteWasAdded { cmd_id, route } => {
+                    if cmd_id == cmd_uuid.to_string() {
+                        break
+                    }
+                },
+                RouteWasNotAdded { cmd_id, route } => {
+                    if cmd_id == cmd_uuid.to_string() {
+                        result = Err(HapiError::RouteAlreadyExists);
+                        break
+                    }
+                },
+                _ => {},
+            }
+        };
+        result
     }
 }
 

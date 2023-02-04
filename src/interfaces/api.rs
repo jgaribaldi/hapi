@@ -1,3 +1,4 @@
+use std::future::Future;
 use std::str::FromStr;
 use futures_util::TryFutureExt;
 use hyper::{Body, header, Method, Request, Response};
@@ -22,8 +23,9 @@ pub(crate) async fn handle_api(
 
     let resource = ApiResource::from_str(path_parts[1]).unwrap();
     let resource_id = path_parts.get(2);
+    let method = request.method();
 
-    let response = match (resource, request.method(), resource_id) {
+    let response = match (resource, method, resource_id) {
         (ApiResource::Route, &Method::GET, None) => {
             let routes = get_routes(send_cmd, recv_evt).await;
             let content = serde_json::to_string(&routes).unwrap();
@@ -38,7 +40,22 @@ pub(crate) async fn handle_api(
             }
         },
         (ApiResource::Route, &Method::POST, None) => {
-            not_found() // TODO: remove
+            let requested_route: Result<crate::infrastructure::serializable_model::Route, HapiError> = hyper::body::to_bytes(request.into_body())
+                .await
+                .map_err(|e| HapiError::HyperError(e))
+                .and_then(|bytes| {
+                    serde_json::from_slice(bytes.to_vec().as_slice())
+                        .map_err(|e| HapiError::SerdeError(e))
+                });
+
+            match requested_route {
+                Ok(route) => {
+                    log::debug!("Route received {:?}", route);
+                    add_route(route, send_cmd, recv_evt).await;
+                    created()
+                },
+                Err(e) => bad_request(e),
+            }
         },
         (ApiResource::Route, &Method::DELETE, Some(r_id)) => {
             not_found() // TODO: remove
@@ -94,6 +111,19 @@ async fn get_route(
     let mut core_client = CoreClient::build(send_cmd, recv_evt);
     core_client.get_route_by_id(route_id).await.unwrap() // TODO: remove unwrap
         .map(|r| crate::infrastructure::serializable_model::Route::from(r))
+}
+
+async fn add_route(
+    route: crate::infrastructure::serializable_model::Route,
+    send_cmd: Sender<Command>,
+    mut recv_evt: Receiver<Event>,
+) {
+    let mut core_client = CoreClient::build(send_cmd, recv_evt);
+    let r = Route::from(route);
+    match core_client.add_route(r).await {
+        Ok(()) => {},
+        Err(e) => log::error!("Error adding route: {:?}", e),
+    }
 }
 
 fn ok() -> Response<Body> {
