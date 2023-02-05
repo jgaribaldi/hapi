@@ -32,7 +32,15 @@ pub(crate) async fn handle_core(
             LookupUpstream { id, client, path, method } => {
                 match context.upstream_lookup(path.as_str(), method.as_str()) {
                     Ok(maybe_upstream) => match maybe_upstream {
-                        Some(upstream) => Some(UpstreamWasFound { cmd_id: id.clone(), upstream_address: upstream }),
+                        Some(upstream) => {
+                            Some(UpstreamWasFound {
+                                cmd_id: id.clone(),
+                                upstream_address: upstream,
+                                client,
+                                path,
+                                method,
+                            })
+                        },
                         None => Some(UpstreamWasNotFound { cmd_id: id.clone() }),
                     },
                     Err(_error) => None, // TODO: map error to proper event
@@ -185,7 +193,7 @@ impl CoreClient {
                 Ok(event) => {
                     log::debug!("Received event {:?}", event);
                     match event {
-                        UpstreamWasFound { cmd_id, upstream_address  } => {
+                        UpstreamWasFound { cmd_id, upstream_address, .. } => {
                             if cmd_id == cmd_uuid.to_string() {
                                 break Ok(Some(upstream_address.clone()))
                             }

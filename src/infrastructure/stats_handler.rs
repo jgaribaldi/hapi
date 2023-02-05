@@ -1,3 +1,4 @@
+use std::sync::{Arc, Mutex};
 use tokio::sync::broadcast::{Receiver, Sender};
 use tokio::sync::broadcast::error::RecvError;
 use uuid::Uuid;
@@ -5,22 +6,28 @@ use crate::errors::HapiError;
 use crate::events::commands::Command;
 use crate::events::commands::Command::{CountStat, LookupStats};
 use crate::events::events::Event;
-use crate::events::events::Event::{StatsWereFound, StatWasCounted};
+use crate::events::events::Event::{StatsWereFound, StatWasCounted, UpstreamWasFound};
 use crate::modules::stats::Stats;
 
-pub(crate) async fn handle_stats(mut recv_cmd: Receiver<Command>, send_evt: Sender<Event>) {
-    let mut stats = Stats::build();
+pub(crate) async fn handle_stats(
+    mut recv_cmd: Receiver<Command>,
+    send_evt: Sender<Event>,
+    mut recv_evt: Receiver<Event>,
+) {
+    let mut stats = Arc::new(Mutex::new(Stats::build()));
+    let mut stats2 = stats.clone();
+
+    tokio::spawn(async move {
+        let stats = stats.clone();
+        event_listener(recv_evt, stats).await;
+    });
 
     while let Ok(command) = recv_cmd.recv().await {
         let maybe_event = match command {
-            CountStat { id } => {
-                // TODO: fix
-                stats.count_request("client", "method", "path", "upstream");
-                Some(StatWasCounted { cmd_id: id })
-            },
             LookupStats { id } => {
-                let stats = stats.get_all();
-                Some(StatsWereFound { cmd_id: id, stats })
+                let sts = stats2.lock().unwrap();
+                let result = sts.get_all();
+                Some(StatsWereFound { cmd_id: id, stats: result })
             },
             _ => None,
         };
@@ -70,6 +77,18 @@ impl StatsClient {
                     break Err(HapiError::MessageReceiveError(error))
                 },
             }
+        }
+    }
+}
+
+async fn event_listener(mut recv_evt: Receiver<Event>, stats: Arc<Mutex<Stats>>) {
+    while let Ok(event) = recv_evt.recv().await {
+        match event {
+            UpstreamWasFound { cmd_id, upstream_address, client, path, method } => {
+                let mut sts = stats.lock().unwrap();
+                sts.count_request(client.as_str(), method.as_str(), path.as_str(), upstream_address.to_string().as_str())
+            },
+            _ => {},
         }
     }
 }

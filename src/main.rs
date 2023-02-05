@@ -46,9 +46,10 @@ async fn main() -> Result<(), HapiError> {
     // stats handler
     let send_evt2 = send_evt.clone();
     let recv_cmd2 = send_cmd.subscribe();
+    let recv_evt2 = send_evt.subscribe();
     tokio::spawn(async move {
         let send_evt2 = send_evt2.clone();
-        handle_stats(recv_cmd2, send_evt2).await;
+        handle_stats(recv_cmd2, send_evt2, recv_evt2).await;
     });
 
     // probes handler
