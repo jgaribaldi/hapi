@@ -58,7 +58,13 @@ pub(crate) async fn handle_api(
             }
         },
         (ApiResource::Route, &Method::DELETE, Some(r_id)) => {
-            not_found() // TODO: remove
+            match remove_route(r_id, send_cmd, recv_evt).await {
+                Ok(route) => {
+                    let content = serde_json::to_string(&route).unwrap(); // TODO: remove unwrap
+                    json(content)
+                },
+                Err(e) => bad_request(e), // TODO: maybe this isn't a 4xx?
+            }
         },
         _ => {
             not_found() // TODO: remove
@@ -124,6 +130,16 @@ async fn add_route(
         Ok(()) => {},
         Err(e) => log::error!("Error adding route: {:?}", e),
     }
+}
+
+async fn remove_route(
+    route_id: &str,
+    send_cmd: Sender<Command>,
+    mut recv_evt: Receiver<Event>,
+) -> Result<crate::infrastructure::serializable_model::Route, HapiError> {
+    let mut core_client = CoreClient::build(send_cmd, recv_evt);
+    core_client.remove_route(route_id).await
+        .map(|r| crate::infrastructure::serializable_model::Route::from(r))
 }
 
 fn ok() -> Response<Body> {

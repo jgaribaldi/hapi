@@ -3,8 +3,9 @@ use hyper::Error;
 use log::SetLoggerError;
 use std::fmt::{Display, Formatter};
 use std::net::AddrParseError;
-use tokio::sync::broadcast::error::SendError;
+use tokio::sync::broadcast::error::{RecvError, SendError};
 use crate::events::commands::Command;
+use crate::events::events::Event;
 use crate::modules::core::context::CoreError;
 
 #[derive(Debug)]
@@ -19,6 +20,7 @@ pub enum HapiError {
     RouteNotExists,
     MessageSendError(SendError<Command>),
     CoreError(CoreError),
+    MessageReceiveError(RecvError),
 }
 
 impl Display for HapiError {
@@ -37,6 +39,7 @@ impl Display for HapiError {
                 write!(f, "{:?}", tokio_send_msg_error)
             },
             HapiError::CoreError(core_error) => write!(f, "{:?}", core_error),
+            HapiError::MessageReceiveError(recv_error) => write!(f, "{:?}", recv_error),
         }
     }
 }
@@ -88,5 +91,11 @@ impl From<SendError<Command>> for HapiError {
 impl From<CoreError> for HapiError {
     fn from(core_error: CoreError) -> Self {
         HapiError::CoreError(core_error)
+    }
+}
+
+impl From<RecvError> for HapiError {
+    fn from(recv_error: RecvError) -> Self {
+        HapiError::MessageReceiveError(recv_error)
     }
 }

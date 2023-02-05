@@ -1,6 +1,6 @@
 use futures_util::future::err;
 use tokio::sync::broadcast::{Receiver, Sender};
-use tokio::sync::broadcast::error::SendError;
+use tokio::sync::broadcast::error::{RecvError, SendError};
 use uuid::Uuid;
 
 use crate::errors::HapiError;
@@ -187,7 +187,7 @@ impl CoreClient {
 
     pub async fn add_route(&mut self, route: Route) -> Result<(), HapiError> {
         let cmd_uuid = Uuid::new_v4();
-        let command = Command::AddRoute { id: cmd_uuid.to_string(), route };
+        let command = AddRoute { id: cmd_uuid.to_string(), route };
         self.send_cmd.send(command)?;
 
         let mut result = Ok(());
@@ -209,6 +209,36 @@ impl CoreClient {
             }
         };
         result
+    }
+
+    pub async fn remove_route(&mut self, route_id: &str) -> Result<Route, HapiError> {
+        let cmd_uuid = Uuid::new_v4();
+        let command = RemoveRoute { id: cmd_uuid.to_string(), route_id: route_id.to_string() };
+        self.send_cmd.send(command)?;
+
+        loop {
+            match self.recv_evt.recv().await {
+                Ok(event) => {
+                    log::debug!("Received event {:?}", event);
+                    match event {
+                        RouteWasRemoved { cmd_id, route } => {
+                            if cmd_id == cmd_uuid.to_string() {
+                                break Ok(route)
+                            }
+                        },
+                        RouteWasNotRemoved { cmd_id, route_id, error } => {
+                            if cmd_id == cmd_uuid.to_string() {
+                                break Err(HapiError::CoreError(error))
+                            }
+                        },
+                        _ => {},
+                    }
+                },
+                Err(error) => {
+                    break Err(HapiError::MessageReceiveError(error))
+                }
+            }
+        }
     }
 }
 
