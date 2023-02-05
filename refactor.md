@@ -27,7 +27,7 @@
 - [x] Refactor it, so it only reacts to certain events, as opposed to receive commands
 
 ## Refactor Interfaces
-- [] API
+- [x] API
 
 ## Abstractions
 - [x] Create Core client to abstract send commands and listen to events
@@ -54,14 +54,12 @@
 - [x] DisableUpstream
 - [x] AddRoute
 - [x] RemoveRoute
-
-## 'Probe' Commands
-- [] StartProbe
-- [] StopProbe
+- [x] LookupAllRoutes
+- [x] LookupRoute
+- [x] LookupAllUpstreams
 
 ## 'Stats' Commands
-- [] CountStat
-- [] LookupStats
+- [x] LookupStats
 
 ## 'Core' Events
 - [x] UpstreamWasFound
@@ -72,12 +70,13 @@
 - [x] RouteWasNotAdded
 - [x] RouteWasRemoved
 - [x] RouteWasNotRemoved
+- [x] RouteWasFound
+- [x] RouteWasNotFound
+- [x] UpstreamsWereFound
 
 ## 'Probe' Events
 - [] ProbeWasStarted
 - [] ProbeWasStopped
 
 ## 'Stats' Events
-- [] StatWasCounted
-- [] StatsWereFound
-- [] StatsWereNotFound
+- [x] StatsWereFound

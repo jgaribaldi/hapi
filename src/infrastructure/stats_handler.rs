@@ -4,7 +4,7 @@ use tokio::sync::broadcast::error::RecvError;
 use uuid::Uuid;
 use crate::errors::HapiError;
 use crate::events::commands::Command;
-use crate::events::commands::Command::{CountStat, LookupStats};
+use crate::events::commands::Command::LookupStats;
 use crate::events::events::Event;
 use crate::events::events::Event::{StatsWereFound, StatWasCounted, UpstreamWasFound};
 use crate::modules::stats::Stats;

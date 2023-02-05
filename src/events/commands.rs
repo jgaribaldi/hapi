@@ -13,11 +13,6 @@ pub(crate) enum Command {
     LookupRoute { id: String, route_id: String },
     LookupAllUpstreams { id: String },
 
-    // Probe commands
-    StartProbe { id: String, upstream_address: UpstreamAddress },
-    StopProbe { id: String, upstream_address: UpstreamAddress },
-
     // Stats commands
-    CountStat { id: String },
     LookupStats { id: String },
 }
