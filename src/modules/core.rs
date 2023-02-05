@@ -23,68 +23,72 @@ pub(crate) mod context {
             }
         }
 
-        pub fn upstream_lookup(&mut self, path: &str, method: &str) -> Option<UpstreamAddress> {
-            self.find_routing_table_index(path, method)
+        pub fn upstream_lookup(&mut self, path: &str, method: &str) -> Result<Option<UpstreamAddress>, CoreError> {
+            let upstream_address = self.find_routing_table_index(path, method)
                 .and_then(|index| self.routes.get_mut(index))
                 .and_then(|route| route.next_available_upstream())
-                .map(|upstream| upstream.address.clone())
+                .map(|upstream| upstream.address.clone());
+            Ok(upstream_address)
         }
 
-        pub fn disable_upstream_for_all_routes(&mut self, upstream: &UpstreamAddress) {
+        pub fn disable_upstream_for_all_routes(&mut self, upstream: &UpstreamAddress) -> Result<(), CoreError> {
             for route in self.routes.iter_mut() {
                 route.disable_upstream(upstream)
             }
+            Ok(())
         }
 
-        pub fn enable_upstream_for_all_routes(&mut self, upstream: &UpstreamAddress) {
+        pub fn enable_upstream_for_all_routes(&mut self, upstream: &UpstreamAddress) -> Result<(), CoreError> {
             for route in self.routes.iter_mut() {
                 route.enable_upstream(upstream)
             }
+            Ok(())
         }
 
         /// Adds the given route to this context
         /// Returns an error if the given route already exists in the context
-        pub fn add_route(&mut self, route: Route) -> Result<(), HapiError> {
+        pub fn add_route(&mut self, route: Route) -> Result<(), CoreError> {
             if !self.route_index.contains_key(&route.id) {
                 self.do_add_route(route);
                 Ok(())
             } else {
-                Err(HapiError::RouteAlreadyExists)
+                Err(CoreError::RouteAlreadyExists)
             }
         }
 
         /// Removes the given route from this context
         /// Returns an error if the route id doesn't exist in the context
-        pub fn remove_route(&mut self, route_id: &str) -> Result<Route, HapiError> {
+        pub fn remove_route(&mut self, route_id: &str) -> Result<Route, CoreError> {
             match self.route_index.get(route_id) {
                 Some(route_index) => {
                     let removed_route = self.do_remove_route(*route_index);
                     Ok(removed_route)
                 }
-                None => Err(HapiError::RouteNotExists),
+                None => Err(CoreError::RouteNotExists),
             }
         }
 
-        pub fn get_all_upstreams(&self) -> Vec<UpstreamAddress> {
+        pub fn get_all_upstreams(&self) -> Result<Vec<UpstreamAddress>, CoreError> {
             let mut result = Vec::new();
             for ups in self.upstreams.iter() {
                 result.push(ups.address.clone());
             }
-            result
+            Ok(result)
         }
 
-        pub fn get_all_routes(&self) -> Vec<&Route> {
+        pub fn get_all_routes(&self) -> Result<Vec<&Route>, CoreError> {
             let mut result = Vec::new();
             for r in self.routes.iter() {
                 result.push(r);
             }
-            result
+            Ok(result)
         }
 
-        pub fn get_route_by_id(&self, route_id: &str) -> Option<&Route> {
-            self.route_index
+        pub fn get_route_by_id(&self, route_id: &str) -> Result<Option<&Route>, CoreError> {
+            let route = self.route_index
                 .get(route_id)
-                .and_then(|index| self.routes.get(*index))
+                .and_then(|index| self.routes.get(*index));
+            Ok(route)
         }
 
         fn find_routing_table_index(&self, path: &str, method: &str) -> Option<usize> {
@@ -161,6 +165,12 @@ pub(crate) mod context {
         }
     }
 
+    #[derive(Clone, Debug)]
+    pub(crate) enum CoreError {
+        RouteAlreadyExists,
+        RouteNotExists,
+    }
+
     fn wrap_string_in_regexp(string: &str) -> String {
         let mut result = String::new();
         result.push_str("^");
@@ -187,7 +197,7 @@ pub(crate) mod context {
                 .unwrap();
 
             // when:
-            let upstream = context.upstream_lookup("uri1", "GET");
+            let upstream = context.upstream_lookup("uri1", "GET").unwrap();
 
             // then:
             assert_eq!("upstream1", upstream.unwrap().to_string().as_str());
@@ -205,7 +215,7 @@ pub(crate) mod context {
                 .unwrap();
 
             // when:
-            let upstream = context.upstream_lookup("uri10", "GET");
+            let upstream = context.upstream_lookup("uri10", "GET").unwrap();
 
             // then:
             assert_eq!(
@@ -226,7 +236,7 @@ pub(crate) mod context {
                 .unwrap();
 
             // when:
-            let upstream = context.upstream_lookup("uri4", "PATCH");
+            let upstream = context.upstream_lookup("uri4", "PATCH").unwrap();
 
             // then:
             assert_eq!(
@@ -244,7 +254,7 @@ pub(crate) mod context {
                 .unwrap();
 
             // when:
-            let upstream = context.upstream_lookup("uri5", "GET");
+            let upstream = context.upstream_lookup("uri5", "GET").unwrap();
 
             // then:
             assert_eq!(upstream, None)
@@ -261,7 +271,7 @@ pub(crate) mod context {
             context.add_route(route).unwrap();
 
             // when:
-            let upstream = context.upstream_lookup("uri1", "GET");
+            let upstream = context.upstream_lookup("uri1", "GET").unwrap();
 
             // then:
             assert_eq!(None, upstream)

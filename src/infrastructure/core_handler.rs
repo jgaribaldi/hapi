@@ -5,10 +5,11 @@ use uuid::Uuid;
 
 use crate::errors::HapiError;
 use crate::events::commands::Command;
+use crate::events::commands::Command::{AddRoute, DisableUpstream, EnableUpstream, LookupAllRoutes, LookupRoute, LookupUpstream, RemoveRoute};
 use crate::events::events::Event;
 use crate::events::events::Event::{RoutesWereFound, RouteWasAdded, RouteWasFound, RouteWasNotAdded, RouteWasNotFound, RouteWasNotRemoved, RouteWasRemoved, StatsWereFound, StatWasCounted, UpstreamWasDisabled, UpstreamWasEnabled, UpstreamWasFound, UpstreamWasNotFound};
 use crate::infrastructure::settings::HapiSettings;
-use crate::modules::core::context::Context;
+use crate::modules::core::context::{Context, CoreError};
 use crate::modules::core::route::Route;
 use crate::modules::core::upstream::UpstreamAddress;
 use crate::modules::stats::Stats;
@@ -28,45 +29,62 @@ pub(crate) async fn handle_core(
     while let Ok(command) = recv_cmd.recv().await {
         log::debug!("Received command {:?}", command);
         let maybe_event = match command {
-            Command::LookupUpstream { id, client, path, method } => {
-                context.upstream_lookup(path.as_str(), method.as_str())
-                    .map(|upstream| {
-                        UpstreamWasFound { cmd_id: id.clone(), upstream_address: upstream }
-                    })
-                    .or(Some(UpstreamWasNotFound { cmd_id: id.clone() }))
+            LookupUpstream { id, client, path, method } => {
+                match context.upstream_lookup(path.as_str(), method.as_str()) {
+                    Ok(maybe_upstream) => match maybe_upstream {
+                        Some(upstream) => Some(UpstreamWasFound { cmd_id: id.clone(), upstream_address: upstream }),
+                        None => Some(UpstreamWasNotFound { cmd_id: id.clone() }),
+                    },
+                    Err(_error) => None, // TODO: map error to proper event
+                }
             },
-            Command::AddRoute { id, route } => {
+            AddRoute { id, route } => {
                 match context.add_route(route.clone()) {
                     Ok(_) => Some(RouteWasAdded { cmd_id: id, route }),
                     Err(e) => Some(RouteWasNotAdded { cmd_id: id, route }),
                 }
             },
-            Command::RemoveRoute { id, route_id } => {
+            RemoveRoute { id, route_id } => {
                 match context.remove_route(route_id.as_str()) {
                     Ok(removed_route) => Some(RouteWasRemoved { cmd_id: id, route: removed_route }),
                     Err(_e) => Some(RouteWasNotRemoved { cmd_id: id, route_id }),
                 }
 
             },
-            Command::EnableUpstream { id, upstream_address } => {
-                context.enable_upstream_for_all_routes(&upstream_address);
-                Some(UpstreamWasEnabled { cmd_id: id, upstream_address })
-            },
-            Command::DisableUpstream { id, upstream_address } => {
-                context.disable_upstream_for_all_routes(&upstream_address);
-                Some(UpstreamWasDisabled { cmd_id: id, upstream_address })
-            },
-            Command::LookupAllRoutes { id} => {
-                let mut all_routes = Vec::new();
-                for r in context.get_all_routes() {
-                    all_routes.push(r.clone());
+            EnableUpstream { id, upstream_address } => {
+                match context.enable_upstream_for_all_routes(&upstream_address) {
+                    Ok(_) => Some(UpstreamWasEnabled { cmd_id: id, upstream_address }),
+                    Err(_error) => None, // TODO: map error to proper event
                 }
-                Some(RoutesWereFound { cmd_id: id, routes: all_routes })
             },
-            Command::LookupRoute { id, route_id } => {
+            DisableUpstream { id, upstream_address } => {
+                match context.disable_upstream_for_all_routes(&upstream_address) {
+                    Ok(_) => Some(UpstreamWasDisabled { cmd_id: id, upstream_address }),
+                    Err(_error) => None, // TODO: map error to proper event
+                }
+            },
+            LookupAllRoutes { id} => {
+                match context.get_all_routes() {
+                    Ok(found_routes) => {
+                        let mut all_routes = Vec::new();
+                        for r in found_routes {
+                            all_routes.push(r.clone());
+                        }
+                        Some(RoutesWereFound { cmd_id: id, routes: all_routes })
+                    },
+                    Err(_error) => None, // TODO: map error to proper event
+                }
+
+            },
+            LookupRoute { id, route_id } => {
                 match context.get_route_by_id(route_id.as_str()) {
-                    Some(route) => Some(RouteWasFound { cmd_id: id, route: route.clone() }),
-                    None => Some(RouteWasNotFound { cmd_id: id, route_id }),
+                    Ok(maybe_route) => {
+                        match maybe_route {
+                            Some(route) => Some(RouteWasFound { cmd_id: id, route: route.clone() }),
+                            None => Some(RouteWasNotFound { cmd_id: id, route_id }),
+                        }
+                    },
+                    Err(_error) => None, // TODO: map error to proper event
                 }
             },
             _ => None,

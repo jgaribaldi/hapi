@@ -31,12 +31,14 @@ pub async fn process_request(
         (ApiResource::Route, &Method::GET) => {
             if path_parts.len() > 2 {
                 // a route ID was given
-                match get_route_by_id_json(context, path_parts[2]) {
-                    Some(json_route) => json_response(json_route),
-                    None => not_found_response(),
-                }
+                // match get_route_by_id_json(context, path_parts[2]) {
+                //     Some(json_route) => json_response(json_route),
+                //     None => not_found_response(),
+                // }
+                not_found_response()
             } else {
-                let json = get_all_routes_json(context);
+                // let json = get_all_routes_json(context);
+                let json = String::from("blah");
                 json_response(json)
             }
         }
@@ -70,7 +72,8 @@ pub async fn process_request(
             }
         }
         (ApiResource::Upstream, &Method::GET) => {
-            let json = get_all_upstreams_json(context);
+            // let json = get_all_upstreams_json(context);
+            let json = String::from("blah");
             json_response(json)
         }
         (ApiResource::Stats, &Method::GET) => {
@@ -84,30 +87,30 @@ pub async fn process_request(
     Ok(response)
 }
 
-fn get_all_upstreams_json(context: Arc<Mutex<Context>>) -> String {
-    let upstreams = get_upstreams(context);
-    let serializable_addresses: Vec<String> = upstreams.iter().map(|u| u.to_string()).collect();
-    serde_json::to_string(&serializable_addresses).unwrap()
-}
+// fn get_all_upstreams_json(context: Arc<Mutex<Context>>) -> String {
+//     let upstreams = get_upstreams(context);
+//     let serializable_addresses: Vec<String> = upstreams.iter().map(|u| u.to_string()).collect();
+//     serde_json::to_string(&serializable_addresses).unwrap()
+// }
 
-fn get_upstreams(context: Arc<Mutex<Context>>) -> Vec<UpstreamAddress> {
-    let ctx = context.lock().unwrap();
-    ctx.get_all_upstreams()
-}
+// fn get_upstreams(context: Arc<Mutex<Context>>) -> Vec<UpstreamAddress> {
+//     let ctx = context.lock().unwrap();
+//     ctx.get_all_upstreams()
+// }
 
-fn get_all_routes_json(context: Arc<Mutex<Context>>) -> String {
-    let ctx = context.lock().unwrap();
-    let routes = ctx.get_all_routes();
-
-    let mut serializable_routes = Vec::new();
-    for r in routes {
-        serializable_routes.push(crate::infrastructure::serializable_model::Route::from(
-            r.clone(),
-        ));
-    }
-
-    serde_json::to_string(&serializable_routes).unwrap()
-}
+// fn get_all_routes_json(context: Arc<Mutex<Context>>) -> String {
+//     let ctx = context.lock().unwrap();
+//     let routes = ctx.get_all_routes();
+//
+//     let mut serializable_routes = Vec::new();
+//     for r in routes {
+//         serializable_routes.push(crate::infrastructure::serializable_model::Route::from(
+//             r.clone(),
+//         ));
+//     }
+//
+//     serde_json::to_string(&serializable_routes).unwrap()
+// }
 
 fn get_all_stats_json(stats: Arc<Mutex<Stats>>) -> String {
     let sts = get_all_stats(stats);
@@ -125,16 +128,16 @@ fn get_all_stats(stats: Arc<Mutex<Stats>>) -> Vec<(String, String, String, Strin
     sts.get_all()
 }
 
-fn get_route_by_id_json(context: Arc<Mutex<Context>>, route_id: &str) -> Option<String> {
-    get_route_by_id(context, route_id)
-        .map(|serializable_route| serde_json::to_string(&serializable_route).unwrap())
-}
+// fn get_route_by_id_json(context: Arc<Mutex<Context>>, route_id: &str) -> Option<String> {
+//     get_route_by_id(context, route_id)
+//         .map(|serializable_route| serde_json::to_string(&serializable_route).unwrap())
+// }
 
-fn get_route_by_id(context: Arc<Mutex<Context>>, route_id: &str) -> Option<Route> {
-    let ctx = context.lock().unwrap();
-    ctx.get_route_by_id(route_id)
-        .map(|route| Route::from(route.clone()))
-}
+// fn get_route_by_id(context: Arc<Mutex<Context>>, route_id: &str) -> Option<Route> {
+//     let ctx = context.lock().unwrap();
+//     ctx.get_route_by_id(route_id)
+//         .map(|route| Route::from(route.clone()))
+// }
 
 fn json_response(json: String) -> Response<Body> {
     Response::builder()

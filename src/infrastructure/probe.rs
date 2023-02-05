@@ -93,7 +93,7 @@ impl ProbeController {
     fn get_current_upstreams(&self) -> HashSet<UpstreamAddress> {
         let ctx = self.context.lock().unwrap();
         let mut result = HashSet::new();
-        for u in ctx.get_all_upstreams().iter() {
+        for u in ctx.get_all_upstreams().unwrap().iter() {
             result.insert(u.clone());
         }
         result

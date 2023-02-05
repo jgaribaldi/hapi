@@ -33,7 +33,7 @@ pub async fn add_route(
     route: Route,
     cmd_tx: Sender<Command>,
 ) -> Result<(), HapiError> {
-    do_add_route(context, route)?;
+    // do_add_route(context, route)?;
     rebuild_probes(&cmd_tx).await;
     Ok(())
 }
@@ -43,21 +43,21 @@ pub async fn delete_route(
     route_id: &str,
     cmd_tx: Sender<Command>,
 ) -> Result<(), HapiError> {
-    do_delete_route(context, route_id)?;
+    // do_delete_route(context, route_id)?;
     rebuild_probes(&cmd_tx).await;
     Ok(())
 }
 
-fn do_add_route(context: Arc<Mutex<Context>>, route_to_add: Route) -> Result<(), HapiError> {
-    let mut ctx = context.lock().unwrap();
-    let r = crate::modules::core::route::Route::from(route_to_add);
-    ctx.add_route(r)
-}
-
-fn do_delete_route(context: Arc<Mutex<Context>>, route_id: &str) -> Result<crate::modules::core::route::Route, HapiError> {
-    let mut ctx = context.lock().unwrap();
-    ctx.remove_route(route_id)
-}
+// fn do_add_route(context: Arc<Mutex<Context>>, route_to_add: Route) -> Result<(), HapiError> {
+//     let mut ctx = context.lock().unwrap();
+//     let r = crate::modules::core::route::Route::from(route_to_add);
+//     ctx.add_route(r)
+// }
+//
+// fn do_delete_route(context: Arc<Mutex<Context>>, route_id: &str) -> Result<crate::modules::core::route::Route, HapiError> {
+//     let mut ctx = context.lock().unwrap();
+//     ctx.remove_route(route_id)
+// }
 
 async fn rebuild_probes(cmd_tx: &Sender<Command>) {
     match cmd_tx.send(RebuildProbes).await {
