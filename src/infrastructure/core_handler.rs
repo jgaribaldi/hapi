@@ -41,13 +41,13 @@ pub(crate) async fn handle_core(
             AddRoute { id, route } => {
                 match context.add_route(route.clone()) {
                     Ok(_) => Some(RouteWasAdded { cmd_id: id, route }),
-                    Err(e) => Some(RouteWasNotAdded { cmd_id: id, route }),
+                    Err(error) => Some(RouteWasNotAdded { cmd_id: id, route, error }),
                 }
             },
             RemoveRoute { id, route_id } => {
                 match context.remove_route(route_id.as_str()) {
                     Ok(removed_route) => Some(RouteWasRemoved { cmd_id: id, route: removed_route }),
-                    Err(_e) => Some(RouteWasNotRemoved { cmd_id: id, route_id }),
+                    Err(error) => Some(RouteWasNotRemoved { cmd_id: id, route_id, error }),
                 }
 
             },
@@ -199,9 +199,9 @@ impl CoreClient {
                         break
                     }
                 },
-                RouteWasNotAdded { cmd_id, route } => {
+                RouteWasNotAdded { cmd_id, route, error } => {
                     if cmd_id == cmd_uuid.to_string() {
-                        result = Err(HapiError::RouteAlreadyExists);
+                        result = Err(HapiError::CoreError(error));
                         break
                     }
                 },

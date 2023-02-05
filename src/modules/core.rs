@@ -290,7 +290,7 @@ pub(crate) mod context {
             let ups_addr = UpstreamAddress::FQDN(String::from("upstream21"));
 
             // when:
-            context.disable_upstream_for_all_routes(&ups_addr);
+            context.disable_upstream_for_all_routes(&ups_addr).unwrap();
 
             // then:
             for route in context.routes.iter() {
@@ -315,7 +315,7 @@ pub(crate) mod context {
             let ups_addr = UpstreamAddress::FQDN(String::from("upstream21"));
 
             // when:
-            context.enable_upstream_for_all_routes(&ups_addr);
+            context.enable_upstream_for_all_routes(&ups_addr).unwrap();
 
             // then:
             for route in context.routes.iter() {

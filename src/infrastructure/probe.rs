@@ -191,7 +191,7 @@ async fn probe_upstream(configuration: Probe, context: Arc<Mutex<Context>>) {
                     );
                     let addr = UpstreamAddress::FQDN(configuration.upstream_address.clone());
                     let mut ctx = context.lock().unwrap();
-                    ctx.enable_upstream_for_all_routes(&addr);
+                    ctx.enable_upstream_for_all_routes(&addr).unwrap();
                 }
             }
             Err(_) => {
@@ -203,7 +203,7 @@ async fn probe_upstream(configuration: Probe, context: Arc<Mutex<Context>>) {
                     );
                     let addr = UpstreamAddress::FQDN(configuration.upstream_address.clone());
                     let mut ctx = context.lock().unwrap();
-                    ctx.disable_upstream_for_all_routes(&addr);
+                    ctx.disable_upstream_for_all_routes(&addr).unwrap();
                 }
             }
         }
