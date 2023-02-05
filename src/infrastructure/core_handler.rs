@@ -114,75 +114,90 @@ impl CoreClient {
 
     pub async fn get_routes(&mut self) -> Result<Vec<Route>, HapiError> {
         let cmd_uuid = Uuid::new_v4();
-        let command = Command::LookupAllRoutes { id: cmd_uuid.to_string() };
+        let command = LookupAllRoutes { id: cmd_uuid.to_string() };
         self.send_cmd.send(command)?;
 
-        let mut result = Vec::new();
-        while let Ok(event) = self.recv_evt.recv().await {
-            log::debug!("Received event {:?}", event);
-            match event {
-                RoutesWereFound { cmd_id, routes } => {
-                    if cmd_id == cmd_uuid.to_string() {
-                        result = routes;
-                        break
+        loop {
+            match self.recv_evt.recv().await {
+                Ok(event) => {
+                    log::debug!("Received event {:?}", event);
+                    match event {
+                        RoutesWereFound { cmd_id, routes } => {
+                            if cmd_id == cmd_uuid.to_string() {
+                                break Ok(routes)
+                            }
+                        },
+                        _ => {},
                     }
                 },
-                _ => {},
+                Err(error) => {
+                    log::warn!("Error receiving message {:?}", error);
+                    break Err(HapiError::MessageReceiveError(error))
+                },
             }
-        };
-        Ok(result)
+        }
     }
 
     pub async fn get_route_by_id(&mut self, route_id: &str) -> Result<Option<Route>, HapiError> {
         let cmd_uuid = Uuid::new_v4();
-        let command = Command::LookupRoute { id: cmd_uuid.to_string(), route_id: route_id.to_string() };
+        let command = LookupRoute { id: cmd_uuid.to_string(), route_id: route_id.to_string() };
         self.send_cmd.send(command)?;
 
-        let mut result = None;
-        while let Ok(event) = self.recv_evt.recv().await {
-            log::debug!("Received event {:?}", event);
-            match event {
-                RouteWasFound { cmd_id, route} => {
-                    if cmd_id == cmd_uuid.to_string() {
-                        result = Some(route);
-                        break
+        loop {
+            match self.recv_evt.recv().await {
+                Ok(event) => {
+                    log::debug!("Received event {:?}", event);
+                    match event {
+                        RouteWasFound { cmd_id, route } => {
+                            if cmd_id == cmd_uuid.to_string() {
+                                break Ok(Some(route))
+                            }
+                        },
+                        RouteWasNotFound { cmd_id, route_id } => {
+                            if cmd_id == cmd_uuid.to_string() {
+                                break Ok(None)
+                            }
+                        },
+                        _ => {},
                     }
                 },
-                RouteWasNotFound { cmd_id, route_id } => {
-                    if cmd_id == cmd_uuid.to_string() {
-                        break
-                    }
+                Err(error) => {
+                    log::warn!("Error receiving message {:?}", error);
+                    break Err(HapiError::MessageReceiveError(error))
                 },
-                _ => {},
             }
-        };
-        Ok(result)
+        }
     }
 
     pub async fn search_upstream(&mut self, client: &str, path: &str, method: &str) -> Result<Option<UpstreamAddress>, HapiError> {
         let cmd_uuid = Uuid::new_v4();
-        let command = Command::LookupUpstream { id: cmd_uuid.to_string(), client: client.to_string(), path: path.to_string(), method: method.to_string() };
+        let command = LookupUpstream { id: cmd_uuid.to_string(), client: client.to_string(), path: path.to_string(), method: method.to_string() };
         self.send_cmd.send(command)?;
 
-        let mut result = None;
-        while let Ok(event) = self.recv_evt.recv().await {
-            log::debug!("Received event {:?}", event);
-            match event {
-                UpstreamWasFound { cmd_id, upstream_address } => {
-                    if cmd_id == cmd_uuid.to_string() {
-                        result = Some(upstream_address.clone());
-                        break
+        loop {
+            match self.recv_evt.recv().await {
+                Ok(event) => {
+                    log::debug!("Received event {:?}", event);
+                    match event {
+                        UpstreamWasFound { cmd_id, upstream_address  } => {
+                            if cmd_id == cmd_uuid.to_string() {
+                                break Ok(Some(upstream_address.clone()))
+                            }
+                        },
+                        UpstreamWasNotFound { cmd_id } => {
+                            if cmd_id == cmd_uuid.to_string() {
+                                break Ok(None)
+                            }
+                        },
+                        _ => {},
                     }
                 },
-                UpstreamWasNotFound { cmd_id } => {
-                    if cmd_id == cmd_uuid.to_string() {
-                        break
-                    }
+                Err(error) => {
+                    log::warn!("Error receiving message {:?}", error);
+                    break Err(HapiError::MessageReceiveError(error))
                 },
-                _ => {},
             }
-        };
-        Ok(result)
+        }
     }
 
     pub async fn add_route(&mut self, route: Route) -> Result<(), HapiError> {
@@ -190,25 +205,30 @@ impl CoreClient {
         let command = AddRoute { id: cmd_uuid.to_string(), route };
         self.send_cmd.send(command)?;
 
-        let mut result = Ok(());
-        while let Ok(event) = self.recv_evt.recv().await {
-            log::debug!("Received event {:?}", event);
-            match event {
-                RouteWasAdded { cmd_id, route } => {
-                    if cmd_id == cmd_uuid.to_string() {
-                        break
+        loop {
+            match self.recv_evt.recv().await {
+                Ok(event) => {
+                    log::debug!("Received event {:?}", event);
+                    match event {
+                        RouteWasAdded { cmd_id, route } => {
+                            if cmd_id == cmd_uuid.to_string() {
+                                break Ok(())
+                            }
+                        },
+                        RouteWasNotAdded { cmd_id, route, error } => {
+                            if cmd_id == cmd_uuid.to_string() {
+                                break Err(HapiError::CoreError(error))
+                            }
+                        },
+                        _ => {},
                     }
                 },
-                RouteWasNotAdded { cmd_id, route, error } => {
-                    if cmd_id == cmd_uuid.to_string() {
-                        result = Err(HapiError::CoreError(error));
-                        break
-                    }
+                Err(error) => {
+                    log::warn!("Error receiving message {:?}", error);
+                    break Err(HapiError::MessageReceiveError(error))
                 },
-                _ => {},
             }
-        };
-        result
+        }
     }
 
     pub async fn remove_route(&mut self, route_id: &str) -> Result<Route, HapiError> {
@@ -235,8 +255,9 @@ impl CoreClient {
                     }
                 },
                 Err(error) => {
+                    log::warn!("Error receiving message {:?}", error);
                     break Err(HapiError::MessageReceiveError(error))
-                }
+                },
             }
         }
     }
