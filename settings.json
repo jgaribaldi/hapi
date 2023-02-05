@@ -1,6 +1,8 @@
 {
   "ip_address": "127.0.0.1",
   "port": 3000,
+  "api_ip_address": "127.0.0.1",
+  "api_port": 3001,
   "routes": [
     {
       "id": "id1",

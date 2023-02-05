@@ -15,6 +15,8 @@ pub struct HapiSettings {
     pub port: u16,
     pub probes: Option<Vec<Probe>>,
     routes: Vec<Route>,
+    pub api_ip_address: String,
+    pub api_port: u16,
 }
 
 impl HapiSettings {
@@ -26,20 +28,13 @@ impl HapiSettings {
     }
 
     pub fn server_socket_address(&self) -> Result<SocketAddr, HapiError> {
-        let mut full_ip_address = String::from(self.ip_address.as_str());
-        full_ip_address.push_str(":");
-        full_ip_address.push_str(self.port.to_string().as_str());
-
+        let full_ip_address = socket_address(self.ip_address.as_str(), self.port);
         let result: SocketAddr = full_ip_address.parse()?;
         Ok(result)
     }
 
     pub fn api_socket_address(&self) -> Result<SocketAddr, HapiError> {
-        let api_port = self.port + 1;
-        let mut full_ip_address = String::from(self.ip_address.as_str());
-        full_ip_address.push_str(":");
-        full_ip_address.push_str(api_port.to_string().as_str());
-
+        let full_ip_address = socket_address(self.api_ip_address.as_str(), self.api_port);
         let result: SocketAddr = full_ip_address.parse()?;
         Ok(result)
     }
@@ -54,4 +49,11 @@ impl HapiSettings {
 
         result
     }
+}
+
+fn socket_address(ip: &str, port: u16) -> String {
+    let mut result = String::from(ip);
+    result.push_str(":");
+    result.push_str(port.to_string().as_str());
+    result
 }
