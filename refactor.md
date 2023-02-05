@@ -20,7 +20,6 @@
 - [x] Create appropriate processes and launch them from main
 - [x] Perform upstream lookup through commands and events
 - [x] Perform upstream enable and disable through commands and events
-- [] Remove old process structure
 
 ## Extract probe handler
 - [x] Create a separate file for it
@@ -80,3 +79,7 @@
 
 ## 'Stats' Events
 - [x] StatsWereFound
+
+## Closing up
+- [] Remove old file structure
+- [] Clean-up code
