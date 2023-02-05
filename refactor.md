@@ -35,7 +35,10 @@
 ## APIs
 - [x] Routes API
 - [x] Upstreams API
-- [] Stats API
+- [x] Stats API
+
+## Stats
+- [] Count stats by listening to upstream lookup events
 
 ## Create app settings
 - [] App's IP address and port

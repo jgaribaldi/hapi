@@ -9,6 +9,7 @@ use crate::errors::HapiError;
 use crate::events::commands::Command;
 use crate::events::events::Event;
 use crate::infrastructure::core_handler::CoreClient;
+use crate::infrastructure::stats_handler::StatsClient;
 use crate::modules::core::route::Route;
 
 pub(crate) async fn handle_api(
@@ -70,6 +71,15 @@ pub(crate) async fn handle_api(
             match get_upstreams(send_cmd, recv_evt).await {
                 Ok(upstreams) => {
                     let content = serde_json::to_string(&upstreams).unwrap(); // TODO: remove unwrap
+                    json(content)
+                },
+                Err(e) => bad_request(e), // TODO: maybe this isn't a 4xx?
+            }
+        },
+        (ApiResource::Stats, &Method::GET, None) => {
+            match get_stats(send_cmd, recv_evt).await {
+                Ok(stats) => {
+                    let content = serde_json::to_string(&stats).unwrap(); // TODO: remove unwrap
                     json(content)
                 },
                 Err(e) => bad_request(e), // TODO: maybe this isn't a 4xx?
@@ -164,6 +174,14 @@ async fn get_upstreams(
             };
             result
         })
+}
+
+async fn get_stats(
+    send_cmd: Sender<Command>,
+    mut recv_evt: Receiver<Event>,
+) -> Result<Vec<(String, String, String, String, u64)>, HapiError> {
+    let mut stats_client = StatsClient::build(send_cmd, recv_evt);
+    stats_client.get_all_stats().await
 }
 
 fn ok() -> Response<Body> {

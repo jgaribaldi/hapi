@@ -24,6 +24,5 @@ pub(crate) enum Event {
 
     // Stats events
     StatWasCounted { cmd_id: String },
-    StatsWereFound { cmd_id: String },
-    StatsWereNotFound { cmd_id: String },
+    StatsWereFound { cmd_id: String, stats: Vec<(String, String, String, String, u64)> },
 }
