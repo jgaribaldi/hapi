@@ -33,7 +33,7 @@
 - [x] Create Core client to abstract send commands and listen to events
 
 ## APIs
-- [] Routes API
+- [x] Routes API
 - [] Upstreams API
 - [] Stats API
 

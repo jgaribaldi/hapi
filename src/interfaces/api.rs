@@ -22,7 +22,7 @@ pub(crate) async fn handle_api(
     let path_parts: Vec<&str> = path.split("/").collect();
 
     let resource = ApiResource::from_str(path_parts[1]).unwrap();
-    let resource_id = path_parts.get(2);
+    let resource_id = path_parts.get(2); // TODO: consider that resource_id could be empty
     let method = request.method();
 
     let response = match (resource, method, resource_id) {
