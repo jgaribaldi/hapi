@@ -5,9 +5,9 @@ use uuid::Uuid;
 
 use crate::errors::HapiError;
 use crate::events::commands::Command;
-use crate::events::commands::Command::{AddRoute, DisableUpstream, EnableUpstream, LookupAllRoutes, LookupRoute, LookupUpstream, RemoveRoute};
+use crate::events::commands::Command::{AddRoute, DisableUpstream, EnableUpstream, LookupAllRoutes, LookupAllUpstreams, LookupRoute, LookupUpstream, RemoveRoute};
 use crate::events::events::Event;
-use crate::events::events::Event::{RoutesWereFound, RouteWasAdded, RouteWasFound, RouteWasNotAdded, RouteWasNotFound, RouteWasNotRemoved, RouteWasRemoved, StatsWereFound, StatWasCounted, UpstreamWasDisabled, UpstreamWasEnabled, UpstreamWasFound, UpstreamWasNotFound};
+use crate::events::events::Event::{RoutesWereFound, RouteWasAdded, RouteWasFound, RouteWasNotAdded, RouteWasNotFound, RouteWasNotRemoved, RouteWasRemoved, StatsWereFound, StatWasCounted, UpstreamsWereFound, UpstreamWasDisabled, UpstreamWasEnabled, UpstreamWasFound, UpstreamWasNotFound};
 use crate::infrastructure::settings::HapiSettings;
 use crate::modules::core::context::{Context, CoreError};
 use crate::modules::core::route::Route;
@@ -84,6 +84,12 @@ pub(crate) async fn handle_core(
                             None => Some(RouteWasNotFound { cmd_id: id, route_id }),
                         }
                     },
+                    Err(_error) => None, // TODO: map error to proper event
+                }
+            },
+            LookupAllUpstreams { id } => {
+                match context.get_all_upstreams() {
+                    Ok(upstreams) => Some(UpstreamsWereFound { cmd_id: id, upstreams }),
                     Err(_error) => None, // TODO: map error to proper event
                 }
             },
@@ -249,6 +255,32 @@ impl CoreClient {
                         RouteWasNotRemoved { cmd_id, route_id, error } => {
                             if cmd_id == cmd_uuid.to_string() {
                                 break Err(HapiError::CoreError(error))
+                            }
+                        },
+                        _ => {},
+                    }
+                },
+                Err(error) => {
+                    log::warn!("Error receiving message {:?}", error);
+                    break Err(HapiError::MessageReceiveError(error))
+                },
+            }
+        }
+    }
+
+    pub async fn get_upstreams(&mut self) -> Result<Vec<UpstreamAddress>, HapiError> {
+        let cmd_uuid = Uuid::new_v4();
+        let command = LookupAllUpstreams { id: cmd_uuid.to_string() };
+        self.send_cmd.send(command)?;
+
+        loop {
+            match self.recv_evt.recv().await {
+                Ok(event) => {
+                    log::debug!("Received event {:?}", event);
+                    match event {
+                        UpstreamsWereFound { cmd_id, upstreams } => {
+                            if cmd_id == cmd_uuid.to_string() {
+                                break Ok(upstreams)
                             }
                         },
                         _ => {},

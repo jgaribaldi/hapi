@@ -34,7 +34,7 @@
 
 ## APIs
 - [x] Routes API
-- [] Upstreams API
+- [x] Upstreams API
 - [] Stats API
 
 ## Create app settings

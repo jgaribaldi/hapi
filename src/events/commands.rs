@@ -11,6 +11,7 @@ pub(crate) enum Command {
     RemoveRoute { id: String, route_id: String },
     LookupAllRoutes { id: String },
     LookupRoute { id: String, route_id: String },
+    LookupAllUpstreams { id: String },
 
     // Probe commands
     StartProbe { id: String, upstream_address: UpstreamAddress },

@@ -66,6 +66,15 @@ pub(crate) async fn handle_api(
                 Err(e) => bad_request(e), // TODO: maybe this isn't a 4xx?
             }
         },
+        (ApiResource::Upstream, &Method::GET, None) => {
+            match get_upstreams(send_cmd, recv_evt).await {
+                Ok(upstreams) => {
+                    let content = serde_json::to_string(&upstreams).unwrap(); // TODO: remove unwrap
+                    json(content)
+                },
+                Err(e) => bad_request(e), // TODO: maybe this isn't a 4xx?
+            }
+        },
         _ => {
             not_found() // TODO: remove
         }
@@ -140,6 +149,21 @@ async fn remove_route(
     let mut core_client = CoreClient::build(send_cmd, recv_evt);
     core_client.remove_route(route_id).await
         .map(|r| crate::infrastructure::serializable_model::Route::from(r))
+}
+
+async fn get_upstreams(
+    send_cmd: Sender<Command>,
+    mut recv_evt: Receiver<Event>,
+) -> Result<Vec<String>, HapiError> {
+    let mut core_client = CoreClient::build(send_cmd, recv_evt);
+    core_client.get_upstreams().await
+        .map(|upstreams| {
+            let mut result = Vec::new();
+            for u in upstreams {
+                result.push(u.to_string())
+            };
+            result
+        })
 }
 
 fn ok() -> Response<Body> {
