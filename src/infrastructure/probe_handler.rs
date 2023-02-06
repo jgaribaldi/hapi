@@ -5,8 +5,10 @@ use tokio::sync::broadcast::{Receiver, Sender};
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
 use uuid::Uuid;
+use crate::errors::HapiError;
 use crate::events::commands::Command;
 use crate::events::events::Event;
+use crate::infrastructure::settings::{HapiSettings, ProbeSettings};
 use crate::modules::core::upstream::UpstreamAddress;
 use crate::modules::probe::Poller;
 
@@ -14,8 +16,9 @@ pub(crate) async fn handle_probes(
     mut recv_evt: Receiver<Event>,
     send_cmd: Sender<Command>,
     _send_evt: Sender<Event>,
-) {
-    let mut probe_controller = ProbeController::build(send_cmd);
+) -> Result<(), HapiError> {
+    let settings = HapiSettings::load_from_file("settings.json")?;
+    let mut probe_controller = ProbeController::build(send_cmd, settings.probes);
 
     while let Ok(event) = recv_evt.recv().await {
         match event {
@@ -34,20 +37,31 @@ pub(crate) async fn handle_probes(
             _ => {},
         }
     }
+    Ok(())
 }
 
 struct ProbeController {
     probes_status: HashMap<UpstreamAddress, JoinHandle<()>>,
     upstream_counter: HashMap<UpstreamAddress, u64>, // how many routes point to this upstream
     send_cmd: Sender<Command>,
+    default_probes: Option<HashMap<String, ProbeSettings>>,
 }
 
 impl ProbeController {
-    fn build(send_cmd: Sender<Command>) -> Self {
+    fn build(send_cmd: Sender<Command>, default_probes: Option<Vec<ProbeSettings>>) -> Self {
+        let mut probes_map = default_probes.map_or(None, |dp| {
+            let mut map = HashMap::new();
+            for p in dp.iter() {
+                map.insert(p.upstream_address.clone(), p.clone());
+            }
+            Some(map)
+        });
+
         ProbeController {
             probes_status: HashMap::new(),
             upstream_counter: HashMap::new(),
             send_cmd,
+            default_probes: probes_map,
         }
     }
 
@@ -87,15 +101,34 @@ impl ProbeController {
 
     /// Spawn a new probing task for the given upstream and add it to the probe handler state
     fn do_add_probe(&mut self, to_add: &UpstreamAddress) {
-        log::debug!("Spawning upstream probe for {:?}", to_add);
-        let upstream_address = to_add.to_string();
+        let probe_settings = self.probe_settings_for(to_add);
+        log::debug!("Spawning upstream probe for {:?} with settings {:?}", to_add, probe_settings);
+
+        let to_add_2 = to_add.clone();
         let send_cmd = self.send_cmd.clone();
-        let handle = tokio::spawn(async {
-            probe_upstream(upstream_address, send_cmd).await
+        let handle = tokio::spawn(async move {
+            let to_add_2 = to_add_2.clone();
+            let upstream_address = to_add_2.to_string();
+            probe_upstream(upstream_address, send_cmd, probe_settings).await
         });
+
+        let to_add = to_add.clone();
         match self.probes_status.insert(to_add.clone(), handle) {
             None => {}
             Some(old_handle) => old_handle.abort(),
+        }
+    }
+
+    fn probe_settings_for(&self, upstream_address: &UpstreamAddress) -> ProbeSettings {
+        if self.default_probes.is_some() {
+            let maybe_default = self.default_probes.as_ref().unwrap().get(upstream_address.to_string().as_str());
+            if maybe_default.is_some() {
+                maybe_default.unwrap().clone()
+            } else {
+                ProbeSettings::default(upstream_address.to_string().as_str())
+            }
+        } else {
+            ProbeSettings::default(upstream_address.to_string().as_str())
         }
     }
 
@@ -117,11 +150,15 @@ impl ProbeController {
 /// back up, it enables it in the current context.
 /// The test to see if a given upstream is "up" is done establishing a TCP connection to the
 /// upstream address.
-async fn probe_upstream(upstream_address: String, send_cmd: Sender<Command>) {
-    let mut poller = Poller::build(5, 5);
+async fn probe_upstream(
+    upstream_address: String,
+    send_cmd: Sender<Command>,
+    probe_settings: ProbeSettings,
+) {
+    let mut poller = Poller::build(probe_settings.error_count, probe_settings.success_count);
 
     loop {
-        sleep(Duration::from_millis(2000)).await;
+        sleep(Duration::from_millis(probe_settings.poll_interval_ms)).await;
         let poll_result = TcpStream::connect(&upstream_address).await;
 
         match poll_result {

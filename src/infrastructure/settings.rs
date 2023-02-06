@@ -6,14 +6,14 @@ use std::path::Path;
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::infrastructure::serializable_model::{Probe, Route};
+use crate::infrastructure::serializable_model::Route;
 use crate::HapiError;
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct HapiSettings {
+pub(crate) struct HapiSettings {
     pub ip_address: String,
     pub port: u16,
-    pub probes: Option<Vec<Probe>>,
+    pub probes: Option<Vec<ProbeSettings>>,
     routes: Vec<Route>,
     pub api_ip_address: String,
     pub api_port: u16,
@@ -48,6 +48,25 @@ impl HapiSettings {
         }
 
         result
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub(crate) struct ProbeSettings {
+    pub upstream_address: String,
+    pub poll_interval_ms: u64,
+    pub error_count: u64,
+    pub success_count: u64,
+}
+
+impl ProbeSettings {
+    pub fn default(upstream_address: &str) -> Self {
+        ProbeSettings {
+            upstream_address: upstream_address.to_string(),
+            poll_interval_ms: 1000,
+            error_count: 5,
+            success_count: 5,
+        }
     }
 }
 

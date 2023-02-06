@@ -40,9 +40,9 @@
 - [x] Count stats by listening to upstream lookup events
 
 ## Create app settings
-- [] App's IP address and port
-- [] API's IP address and port
-- [] Probe default configuration
+- [x] App's IP address and port
+- [x] API's IP address and port
+- [x] Probe default configuration
 
 ## Create app database
 - [] JSON file with routes
