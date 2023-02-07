@@ -6,17 +6,15 @@ use std::path::Path;
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::infrastructure::serializable_model::Route;
 use crate::HapiError;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct HapiSettings {
-    pub ip_address: String,
-    pub port: u16,
     pub probes: Option<Vec<ProbeSettings>>,
-    routes: Vec<Route>,
-    pub api_ip_address: String,
-    pub api_port: u16,
+    ip_address: String,
+    port: u16,
+    api_ip_address: String,
+    api_port: u16,
 }
 
 impl HapiSettings {
@@ -37,17 +35,6 @@ impl HapiSettings {
         let full_ip_address = socket_address(self.api_ip_address.as_str(), self.api_port);
         let result: SocketAddr = full_ip_address.parse()?;
         Ok(result)
-    }
-
-    pub fn routes(&self) -> Vec<crate::modules::core::route::Route> {
-        let mut result = Vec::new();
-
-        for r in self.routes.iter() {
-            let route: crate::modules::core::route::Route = r.clone().into();
-            result.push(route);
-        }
-
-        result
     }
 }
 

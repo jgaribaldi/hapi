@@ -13,18 +13,16 @@ use crate::modules::core::context::{Context, CoreError};
 use crate::modules::core::route::Route;
 use crate::modules::core::upstream::UpstreamAddress;
 use crate::modules::stats::Stats;
+use crate::repositories::jsonfile::JsonFile;
 
 pub(crate) async fn handle_core(
     mut recv_cmd: Receiver<Command>,
     send_evt: Sender<Event>,
     send_cmd: Sender<Command>,
 ) {
-    // TODO: remove .unwrap()
-    let settings = HapiSettings::load_from_file("settings.json").unwrap();
-    log::info!("Settings {:?}", settings);
-
-    // TODO: remove .unwrap()
-    let mut context = build_context_from_settings(&settings, send_cmd).unwrap();
+    // TODO: remove unwrap()
+    let db = JsonFile::build("db.json").unwrap();
+    let mut context = load_json_file_db(db).unwrap();
 
     while let Ok(command) = recv_cmd.recv().await {
         log::debug!("Received command {:?}", command);
@@ -303,15 +301,13 @@ impl CoreClient {
     }
 }
 
-fn build_context_from_settings(settings: &HapiSettings, send_cmd: Sender<Command>) -> Result<Context, HapiError> {
+fn load_json_file_db(db: JsonFile) -> Result<Context, HapiError> {
     let mut context = Context::build_empty();
-    for r in settings.routes() {
-        let command = Command::AddRoute { id: Uuid::new_v4().to_string(), route: r.clone() };
-        match send_cmd.send(command) {
-            Ok(_) => log::debug!("Command sent"),
-            Err(e) => log::error!("Error sending command {}", e),
+    if db.routes.is_some() {
+        for route in db.routes.unwrap().iter() {
+            let r = Route::from(route.clone());
+            context.add_route(r)?;
         }
     }
     Ok(context)
 }
-

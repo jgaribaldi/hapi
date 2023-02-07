@@ -45,7 +45,7 @@
 - [x] Probe default configuration
 
 ## Create app database
-- [] JSON file with routes
+- [x] JSON file with routes
 
 ## 'Core' Commands
 - [x] LookupUpstream

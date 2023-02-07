@@ -22,6 +22,7 @@ mod infrastructure;
 mod modules;
 mod interfaces;
 mod events;
+mod repositories;
 
 #[tokio::main]
 async fn main() -> Result<(), HapiError> {

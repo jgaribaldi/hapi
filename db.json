@@ -1,0 +1,20 @@
+{
+  "routes": [
+    {
+      "id": "id1",
+      "name": "Test route 1",
+      "methods": ["GET", "POST"],
+      "paths": ["/test"],
+      "strategy": "RoundRobin",
+      "upstreams": ["localhost:8001", "localhost:8002"]
+    },
+    {
+      "id": "id2",
+      "name": "Test route 2",
+      "methods": ["GET", "POST"],
+      "paths": ["/test2"],
+      "strategy": "AlwaysFirst",
+      "upstreams": ["localhost:8001", "localhost:8002"]
+    }
+  ]
+}

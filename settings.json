@@ -3,24 +3,6 @@
   "port": 3000,
   "api_ip_address": "127.0.0.1",
   "api_port": 3001,
-  "routes": [
-    {
-      "id": "id1",
-      "name": "Test route 1",
-      "methods": ["GET", "POST"],
-      "paths": ["/test"],
-      "strategy": "RoundRobin",
-      "upstreams": ["localhost:8001", "localhost:8002"]
-    },
-    {
-      "id": "id2",
-      "name": "Test route 2",
-      "methods": ["GET", "POST"],
-      "paths": ["/test2"],
-      "strategy": "AlwaysFirst",
-      "upstreams": ["localhost:8001", "localhost:8002"]
-    }
-  ],
   "probes": [
     {
       "upstream_address": "localhost:8001",

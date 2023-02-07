@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::convert::Infallible;
 use std::time::Duration;
 use tokio::net::TcpStream;
 use tokio::sync::broadcast::{Receiver, Sender};
@@ -16,8 +17,9 @@ pub(crate) async fn handle_probes(
     mut recv_evt: Receiver<Event>,
     send_cmd: Sender<Command>,
     _send_evt: Sender<Event>,
-) -> Result<(), HapiError> {
-    let settings = HapiSettings::load_from_file("settings.json")?;
+) {
+    // TODO: remove unwrap()
+    let settings = HapiSettings::load_from_file("settings.json").unwrap();
     let mut probe_controller = ProbeController::build(send_cmd, settings.probes);
 
     while let Ok(event) = recv_evt.recv().await {
@@ -37,7 +39,6 @@ pub(crate) async fn handle_probes(
             _ => {},
         }
     }
-    Ok(())
 }
 
 struct ProbeController {
