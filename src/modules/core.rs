@@ -1,7 +1,6 @@
 pub(crate) mod context {
     use std::collections::{HashMap, HashSet};
     use regex::Regex;
-    use crate::errors::HapiError;
     use crate::modules::core::route::Route;
     use crate::modules::core::upstream::{Upstream, UpstreamAddress};
 

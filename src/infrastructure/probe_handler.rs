@@ -1,12 +1,10 @@
 use std::collections::HashMap;
-use std::convert::Infallible;
 use std::time::Duration;
 use tokio::net::TcpStream;
 use tokio::sync::broadcast::{Receiver, Sender};
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
 use uuid::Uuid;
-use crate::errors::HapiError;
 use crate::events::commands::Command;
 use crate::events::events::Event;
 use crate::infrastructure::settings::{HapiSettings, ProbeSettings};
@@ -24,12 +22,12 @@ pub(crate) async fn handle_probes(
 
     while let Ok(event) = recv_evt.recv().await {
         match event {
-            Event::RouteWasAdded { cmd_id, route } => {
+            Event::RouteWasAdded { route, .. } => {
                 for upstream in route.upstreams {
                     probe_controller.add_probe(&upstream.address);
                 }
             },
-            Event::RouteWasRemoved { cmd_id, route } => {
+            Event::RouteWasRemoved { route, .. } => {
                 for upstream in route.upstreams {
                     probe_controller.remove_probe(&upstream.address);
                 }
@@ -48,7 +46,7 @@ struct ProbeController {
 
 impl ProbeController {
     fn build(send_cmd: Sender<Command>, default_probes: Option<Vec<ProbeSettings>>) -> Self {
-        let mut probes_map = default_probes.map_or(None, |dp| {
+        let probes_map = default_probes.map_or(None, |dp| {
             let mut map = HashMap::new();
             for p in dp.iter() {
                 map.insert(p.upstream_address.clone(), p.clone());

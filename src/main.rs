@@ -15,7 +15,6 @@ use crate::infrastructure::settings::HapiSettings;
 use crate::infrastructure::processor::process_request;
 use crate::infrastructure::stats_handler::handle_stats;
 use crate::interfaces::api::handle_api;
-use crate::modules::core::context::Context;
 
 mod errors;
 mod infrastructure;
@@ -37,11 +36,9 @@ async fn main() -> Result<(), HapiError> {
     // core handler
     let send_evt1 = send_evt.clone();
     let recv_cmd1 = send_cmd.subscribe();
-    let send_cmd1 = send_cmd.clone();
     tokio::spawn(async move {
         let send_evt1 = send_evt1.clone();
-        let send_cmd1 = send_cmd1.clone();
-        handle_core(recv_cmd1, send_evt1, send_cmd1).await;
+        handle_core(recv_cmd1, send_evt1).await;
     });
 
     // stats handler
@@ -84,8 +81,6 @@ async fn main() -> Result<(), HapiError> {
         .serve(make_service)
         .with_graceful_shutdown(graceful_quit_handler());
 
-    let send_cmd5 = send_cmd.clone();
-    let send_evt5 = send_evt.clone();
     let make_api_service = make_service_fn(move |_conn| {
         let send_cmd5 = send_cmd.clone();
         let send_evt5 = send_evt.clone();

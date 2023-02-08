@@ -3,7 +3,6 @@ use std::str::FromStr;
 use hyper::header::HOST;
 use hyper::{Body, Client, HeaderMap, Request, Response, Uri};
 use tokio::sync::broadcast::{Receiver, Sender};
-use uuid::Uuid;
 
 use crate::HapiError;
 use crate::events::commands::Command;

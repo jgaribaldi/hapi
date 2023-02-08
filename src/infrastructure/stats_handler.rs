@@ -1,21 +1,20 @@
 use std::sync::{Arc, Mutex};
 use tokio::sync::broadcast::{Receiver, Sender};
-use tokio::sync::broadcast::error::RecvError;
 use uuid::Uuid;
 use crate::errors::HapiError;
 use crate::events::commands::Command;
 use crate::events::commands::Command::LookupStats;
 use crate::events::events::Event;
-use crate::events::events::Event::{StatsWereFound, StatWasCounted, UpstreamWasFound};
+use crate::events::events::Event::{StatsWereFound, UpstreamWasFound};
 use crate::modules::stats::Stats;
 
 pub(crate) async fn handle_stats(
     mut recv_cmd: Receiver<Command>,
     send_evt: Sender<Event>,
-    mut recv_evt: Receiver<Event>,
+    recv_evt: Receiver<Event>,
 ) {
-    let mut stats = Arc::new(Mutex::new(Stats::build()));
-    let mut stats2 = stats.clone();
+    let stats = Arc::new(Mutex::new(Stats::build()));
+    let stats2 = stats.clone();
 
     tokio::spawn(async move {
         let stats = stats.clone();
@@ -84,7 +83,7 @@ impl StatsClient {
 async fn event_listener(mut recv_evt: Receiver<Event>, stats: Arc<Mutex<Stats>>) {
     while let Ok(event) = recv_evt.recv().await {
         match event {
-            UpstreamWasFound { cmd_id, upstream_address, client, path, method } => {
+            UpstreamWasFound { upstream_address, client, path, method, .. } => {
                 let mut sts = stats.lock().unwrap();
                 sts.count_request(client.as_str(), method.as_str(), path.as_str(), upstream_address.to_string().as_str())
             },

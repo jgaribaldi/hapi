@@ -1,24 +1,19 @@
-use futures_util::future::err;
 use tokio::sync::broadcast::{Receiver, Sender};
-use tokio::sync::broadcast::error::{RecvError, SendError};
 use uuid::Uuid;
 
 use crate::errors::HapiError;
 use crate::events::commands::Command;
 use crate::events::commands::Command::{AddRoute, DisableUpstream, EnableUpstream, LookupAllRoutes, LookupAllUpstreams, LookupRoute, LookupUpstream, RemoveRoute};
 use crate::events::events::Event;
-use crate::events::events::Event::{RoutesWereFound, RouteWasAdded, RouteWasFound, RouteWasNotAdded, RouteWasNotFound, RouteWasNotRemoved, RouteWasRemoved, StatsWereFound, StatWasCounted, UpstreamsWereFound, UpstreamWasDisabled, UpstreamWasEnabled, UpstreamWasFound, UpstreamWasNotFound};
-use crate::infrastructure::settings::HapiSettings;
-use crate::modules::core::context::{Context, CoreError};
+use crate::events::events::Event::{RoutesWereFound, RouteWasAdded, RouteWasFound, RouteWasNotAdded, RouteWasNotFound, RouteWasNotRemoved, RouteWasRemoved, UpstreamsWereFound, UpstreamWasDisabled, UpstreamWasEnabled, UpstreamWasFound, UpstreamWasNotFound};
+use crate::modules::core::context::Context;
 use crate::modules::core::route::Route;
 use crate::modules::core::upstream::UpstreamAddress;
-use crate::modules::stats::Stats;
 use crate::repositories::jsonfile::JsonFile;
 
 pub(crate) async fn handle_core(
     mut recv_cmd: Receiver<Command>,
     send_evt: Sender<Event>,
-    send_cmd: Sender<Command>,
 ) {
     // TODO: remove unwrap()
     let db = JsonFile::build("db.json").unwrap();
@@ -165,7 +160,7 @@ impl CoreClient {
                                 break Ok(Some(route))
                             }
                         },
-                        RouteWasNotFound { cmd_id, route_id } => {
+                        RouteWasNotFound { cmd_id, .. } => {
                             if cmd_id == cmd_uuid.to_string() {
                                 break Ok(None)
                             }
@@ -213,6 +208,7 @@ impl CoreClient {
     }
 
     pub async fn add_route(&mut self, route: Route) -> Result<(), HapiError> {
+        // TODO: change return type to Result<Route, HapiError>
         let cmd_uuid = Uuid::new_v4();
         let command = AddRoute { id: cmd_uuid.to_string(), route };
         self.send_cmd.send(command)?;
@@ -222,12 +218,12 @@ impl CoreClient {
                 Ok(event) => {
                     log::debug!("Received event {:?}", event);
                     match event {
-                        RouteWasAdded { cmd_id, route } => {
+                        RouteWasAdded { cmd_id, .. } => {
                             if cmd_id == cmd_uuid.to_string() {
                                 break Ok(())
                             }
                         },
-                        RouteWasNotAdded { cmd_id, route, error } => {
+                        RouteWasNotAdded { cmd_id, error, .. } => {
                             if cmd_id == cmd_uuid.to_string() {
                                 break Err(HapiError::CoreError(error))
                             }
@@ -258,7 +254,7 @@ impl CoreClient {
                                 break Ok(route)
                             }
                         },
-                        RouteWasNotRemoved { cmd_id, route_id, error } => {
+                        RouteWasNotRemoved { cmd_id, error, .. } => {
                             if cmd_id == cmd_uuid.to_string() {
                                 break Err(HapiError::CoreError(error))
                             }

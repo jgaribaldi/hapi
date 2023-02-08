@@ -19,6 +19,5 @@ pub(crate) enum Event {
     UpstreamsWereFound { cmd_id: String, upstreams: Vec<UpstreamAddress> },
 
     // Stats events
-    StatWasCounted { cmd_id: String },
     StatsWereFound { cmd_id: String, stats: Vec<(String, String, String, String, u64)> },
 }

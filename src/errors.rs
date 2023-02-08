@@ -5,7 +5,6 @@ use std::fmt::{Display, Formatter};
 use std::net::AddrParseError;
 use tokio::sync::broadcast::error::{RecvError, SendError};
 use crate::events::commands::Command;
-use crate::events::events::Event;
 use crate::modules::core::context::CoreError;
 
 #[derive(Debug)]
@@ -16,8 +15,6 @@ pub(crate) enum HapiError {
     IoError(std::io::Error),
     SerdeError(serde_json::Error),
     AddressParseError(AddrParseError),
-    RouteAlreadyExists,
-    RouteNotExists,
     MessageSendError(SendError<Command>),
     CoreError(CoreError),
     MessageReceiveError(RecvError),
@@ -34,7 +31,6 @@ impl Display for HapiError {
             HapiError::AddressParseError(address_parse_error) => {
                 write!(f, "{:?}", address_parse_error)
             },
-            HapiError::RouteAlreadyExists | HapiError::RouteNotExists => todo!(),
             HapiError::MessageSendError(tokio_send_msg_error) => {
                 write!(f, "{:?}", tokio_send_msg_error)
             },

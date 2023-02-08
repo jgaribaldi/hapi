@@ -1,10 +1,6 @@
-use std::future::Future;
 use std::str::FromStr;
-use futures_util::TryFutureExt;
 use hyper::{Body, header, Method, Request, Response};
-use tokio::sync::broadcast::error::SendError;
 use tokio::sync::broadcast::{Receiver, Sender};
-use uuid::Uuid;
 use crate::errors::HapiError;
 use crate::events::commands::Command;
 use crate::events::events::Event;
@@ -15,7 +11,7 @@ use crate::modules::core::route::Route;
 pub(crate) async fn handle_api(
     request: Request<Body>,
     send_cmd: Sender<Command>,
-    mut recv_evt: Receiver<Event>,
+    recv_evt: Receiver<Event>,
 ) -> Result<Response<Body>, HapiError> {
     log::debug!("Received: {:?}", &request);
 
@@ -116,7 +112,7 @@ impl FromStr for ApiResource {
 
 async fn get_routes(
     send_cmd: Sender<Command>,
-    mut recv_evt: Receiver<Event>,
+    recv_evt: Receiver<Event>,
 ) -> Vec<crate::infrastructure::serializable_model::Route> {
     let mut core_client = CoreClient::build(send_cmd, recv_evt);
     let found_routes = core_client.get_routes().await.unwrap(); // TODO: remove unwrap
@@ -131,7 +127,7 @@ async fn get_routes(
 async fn get_route(
     route_id: &str,
     send_cmd: Sender<Command>,
-    mut recv_evt: Receiver<Event>,
+    recv_evt: Receiver<Event>,
 ) -> Option<crate::infrastructure::serializable_model::Route> {
     let mut core_client = CoreClient::build(send_cmd, recv_evt);
     core_client.get_route_by_id(route_id).await.unwrap() // TODO: remove unwrap
@@ -141,7 +137,7 @@ async fn get_route(
 async fn add_route(
     route: crate::infrastructure::serializable_model::Route,
     send_cmd: Sender<Command>,
-    mut recv_evt: Receiver<Event>,
+    recv_evt: Receiver<Event>,
 ) {
     let mut core_client = CoreClient::build(send_cmd, recv_evt);
     let r = Route::from(route);
@@ -154,7 +150,7 @@ async fn add_route(
 async fn remove_route(
     route_id: &str,
     send_cmd: Sender<Command>,
-    mut recv_evt: Receiver<Event>,
+    recv_evt: Receiver<Event>,
 ) -> Result<crate::infrastructure::serializable_model::Route, HapiError> {
     let mut core_client = CoreClient::build(send_cmd, recv_evt);
     core_client.remove_route(route_id).await
@@ -163,7 +159,7 @@ async fn remove_route(
 
 async fn get_upstreams(
     send_cmd: Sender<Command>,
-    mut recv_evt: Receiver<Event>,
+    recv_evt: Receiver<Event>,
 ) -> Result<Vec<String>, HapiError> {
     let mut core_client = CoreClient::build(send_cmd, recv_evt);
     core_client.get_upstreams().await
@@ -178,7 +174,7 @@ async fn get_upstreams(
 
 async fn get_stats(
     send_cmd: Sender<Command>,
-    mut recv_evt: Receiver<Event>,
+    recv_evt: Receiver<Event>,
 ) -> Result<Vec<(String, String, String, String, u64)>, HapiError> {
     let mut stats_client = StatsClient::build(send_cmd, recv_evt);
     stats_client.get_all_stats().await
