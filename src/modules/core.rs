@@ -6,7 +6,7 @@ pub(crate) mod context {
     use crate::modules::core::upstream::{Upstream, UpstreamAddress};
 
     #[derive(Clone, Debug)]
-    pub struct Context {
+    pub(crate) struct Context {
         routes: Vec<Route>,
         routing_table: HashMap<(String, String), usize>, // (path, method) => route index
         upstreams: HashSet<Upstream>,

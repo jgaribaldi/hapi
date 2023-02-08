@@ -77,5 +77,5 @@
 - [x] StatsWereFound
 
 ## Closing up
-- [] Remove old file structure
+- [x] Remove old file structure
 - [] Clean-up code

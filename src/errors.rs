@@ -9,7 +9,7 @@ use crate::events::events::Event;
 use crate::modules::core::context::CoreError;
 
 #[derive(Debug)]
-pub enum HapiError {
+pub(crate) enum HapiError {
     SetLoggerError(SetLoggerError),
     InvalidUri(InvalidUri),
     HyperError(Error),

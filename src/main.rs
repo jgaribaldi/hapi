@@ -61,8 +61,6 @@ async fn main() -> Result<(), HapiError> {
         handle_probes(recv_evt3, send_cmd3,send_evt3).await;
     });
 
-    let settings = HapiSettings::load_from_file("settings.json")?;
-
     let send_cmd4 = send_cmd.clone();
     let send_evt4 = send_evt.clone();
     let make_service = make_service_fn(move |conn: &AddrStream| {
@@ -80,6 +78,7 @@ async fn main() -> Result<(), HapiError> {
         async move { Ok::<_, HapiError>(service) }
     });
 
+    let settings = HapiSettings::load_from_file("settings.json")?;
     let addr = settings.server_socket_address()?;
     let server = Server::bind(&addr)
         .serve(make_service)
@@ -88,18 +87,12 @@ async fn main() -> Result<(), HapiError> {
     let send_cmd5 = send_cmd.clone();
     let send_evt5 = send_evt.clone();
     let make_api_service = make_service_fn(move |_conn| {
-    //     let context = api_thread_safe_context.clone();
-    //     let stats = api_thread_safe_stats.clone();
-    //     let main_cmd_tx = main_cmd_tx.clone();
         let send_cmd5 = send_cmd.clone();
         let send_evt5 = send_evt.clone();
         let service = service_fn(move |request| {
             let send_cmd5 = send_cmd5.clone();
             let recv_evt5 = send_evt5.subscribe();
             handle_api(request, send_cmd5, recv_evt5)
-    //         let context = context.clone();
-    //         let stats = stats.clone();
-    //         api::process_request(context, stats, request, main_cmd_tx.clone())
         });
         async move { Ok::<_, HapiError>(service) }
     });
@@ -107,7 +100,7 @@ async fn main() -> Result<(), HapiError> {
     let api_addr = settings.api_socket_address()?;
     let api_server = Server::bind(&api_addr)
         .serve(make_api_service)
-        .with_graceful_shutdown(graceful_quit_handler());
+        .with_graceful_shutdown(api_graceful_quit_handler());
 
     let _ret = futures_util::future::join(server, api_server).await;
     Ok(())
@@ -125,9 +118,11 @@ async fn graceful_quit_handler() {
     log::info!("Shutting down Hapi. Bye :-)")
 }
 
-// async fn api_graceful_quit_handler() {
-//     tokio::signal::ctrl_c()
-//         .await
-//         .expect("Could not install graceful quit signal handler");
-// }
+async fn api_graceful_quit_handler() {
+    tokio::signal::ctrl_c()
+        .await
+        .expect("Could not install graceful quit signal handler");
+
+    log::info!("Shutting down API server. Bye :-)")
+}
 

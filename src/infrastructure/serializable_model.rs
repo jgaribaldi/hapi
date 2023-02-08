@@ -94,25 +94,6 @@ fn upstream_str_to_tuple(regex: &Regex, upstream: &str) -> (u8, u8, u8, u8, u16)
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Probe {
-    pub upstream_address: String,
-    pub poll_interval_ms: u64,
-    pub error_count: u64,
-    pub success_count: u64,
-}
-
-impl Probe {
-    pub fn default(upstream_address: &str) -> Self {
-        Probe {
-            upstream_address: upstream_address.to_string(),
-            poll_interval_ms: 1000,
-            error_count: 5,
-            success_count: 5,
-        }
-    }
-}
-
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub enum Strategy {
     AlwaysFirst,

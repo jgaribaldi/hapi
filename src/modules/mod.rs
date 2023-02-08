@@ -1,3 +1,3 @@
-pub mod core;
-pub mod probe;
-pub mod stats;
+pub(crate) mod core;
+pub(crate) mod probe;
+pub(crate) mod stats;
