@@ -1,11 +1,11 @@
+use crate::events::commands::Command;
+use crate::modules::core::context::CoreError;
 use hyper::http::uri::InvalidUri;
 use hyper::Error;
 use log::SetLoggerError;
 use std::fmt::{Display, Formatter};
 use std::net::AddrParseError;
 use tokio::sync::broadcast::error::{RecvError, SendError};
-use crate::events::commands::Command;
-use crate::modules::core::context::CoreError;
 
 #[derive(Debug)]
 pub(crate) enum HapiError {
@@ -30,10 +30,10 @@ impl Display for HapiError {
             HapiError::SerdeError(serde_error) => write!(f, "{:?}", serde_error),
             HapiError::AddressParseError(address_parse_error) => {
                 write!(f, "{:?}", address_parse_error)
-            },
+            }
             HapiError::MessageSendError(tokio_send_msg_error) => {
                 write!(f, "{:?}", tokio_send_msg_error)
-            },
+            }
             HapiError::CoreError(core_error) => write!(f, "{:?}", core_error),
             HapiError::MessageReceiveError(recv_error) => write!(f, "{:?}", recv_error),
         }

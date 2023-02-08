@@ -1,3 +1,8 @@
+use crate::events::commands::Command;
+use crate::events::events::Event;
+use crate::infrastructure::settings::{HapiSettings, ProbeSettings};
+use crate::modules::core::upstream::UpstreamAddress;
+use crate::modules::probe::Poller;
 use std::collections::HashMap;
 use std::time::Duration;
 use tokio::net::TcpStream;
@@ -5,11 +10,6 @@ use tokio::sync::broadcast::{Receiver, Sender};
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
 use uuid::Uuid;
-use crate::events::commands::Command;
-use crate::events::events::Event;
-use crate::infrastructure::settings::{HapiSettings, ProbeSettings};
-use crate::modules::core::upstream::UpstreamAddress;
-use crate::modules::probe::Poller;
 
 pub(crate) async fn handle_probes(
     mut recv_evt: Receiver<Event>,
@@ -26,13 +26,13 @@ pub(crate) async fn handle_probes(
                 for upstream in route.upstreams {
                     probe_controller.add_probe(&upstream.address);
                 }
-            },
+            }
             Event::RouteWasRemoved { route, .. } => {
                 for upstream in route.upstreams {
                     probe_controller.remove_probe(&upstream.address);
                 }
-            },
-            _ => {},
+            }
+            _ => {}
         }
     }
 }
@@ -66,12 +66,19 @@ impl ProbeController {
         if let Some(current_count) = self.upstream_counter.get_mut(to_add) {
             // we are already probing for the given upstream, just know that there's another route
             // using the same upstream
-            log::debug!("Upstream {} is already being probed with count {}. Increasing 1", to_add, current_count);
+            log::debug!(
+                "Upstream {} is already being probed with count {}. Increasing 1",
+                to_add,
+                current_count
+            );
             *current_count = *current_count + 1;
             None
         } else {
             // we need to start probing the given upstream
-            log::debug!("Upstream {} is not being probed, launching new probe", to_add);
+            log::debug!(
+                "Upstream {} is not being probed, launching new probe",
+                to_add
+            );
             self.do_add_probe(to_add);
             self.upstream_counter.insert(to_add.clone(), 1);
             Some(to_add.clone())
@@ -86,12 +93,19 @@ impl ProbeController {
                 self.upstream_counter.remove(to_remove);
                 Some(to_remove.clone())
             } else {
-                log::debug!("Current count for upstream {} is {}, decreasing counter", to_remove, current_count);
+                log::debug!(
+                    "Current count for upstream {} is {}, decreasing counter",
+                    to_remove,
+                    current_count
+                );
                 *current_count = *current_count - 1;
                 None
             }
         } else {
-            log::warn!("Given probe to remove {} does not exist in the probe controller state", to_remove);
+            log::warn!(
+                "Given probe to remove {} does not exist in the probe controller state",
+                to_remove
+            );
             None
         }
     }
@@ -99,7 +113,11 @@ impl ProbeController {
     /// Spawn a new probing task for the given upstream and add it to the probe handler state
     fn do_add_probe(&mut self, to_add: &UpstreamAddress) {
         let probe_settings = self.probe_settings_for(to_add);
-        log::debug!("Spawning upstream probe for {:?} with settings {:?}", to_add, probe_settings);
+        log::debug!(
+            "Spawning upstream probe for {:?} with settings {:?}",
+            to_add,
+            probe_settings
+        );
 
         let to_add_2 = to_add.clone();
         let send_cmd = self.send_cmd.clone();
@@ -118,7 +136,11 @@ impl ProbeController {
 
     fn probe_settings_for(&self, upstream_address: &UpstreamAddress) -> ProbeSettings {
         if self.default_probes.is_some() {
-            let maybe_default = self.default_probes.as_ref().unwrap().get(upstream_address.to_string().as_str());
+            let maybe_default = self
+                .default_probes
+                .as_ref()
+                .unwrap()
+                .get(upstream_address.to_string().as_str());
             if maybe_default.is_some() {
                 maybe_default.unwrap().clone()
             } else {
@@ -168,13 +190,16 @@ async fn probe_upstream(
                     );
                     // send enable upstream command to core
                     let cmd_uuid = Uuid::new_v4();
-                    let command = Command::EnableUpstream { id: cmd_uuid.to_string(), upstream_address: UpstreamAddress::FQDN(upstream_address.clone()) };
+                    let command = Command::EnableUpstream {
+                        id: cmd_uuid.to_string(),
+                        upstream_address: UpstreamAddress::FQDN(upstream_address.clone()),
+                    };
                     match send_cmd.send(command) {
                         Ok(_) => log::debug!("Command sent"),
                         Err(e) => log::error!("Error sending command {}", e),
                     }
                 }
-            },
+            }
             Err(_) => {
                 let upstream_was_disabled = poller.check_and_disable_upstream();
                 if upstream_was_disabled {
@@ -184,7 +209,10 @@ async fn probe_upstream(
                     );
                     // send disable upstream command to core
                     let cmd_uuid = Uuid::new_v4();
-                    let command = Command::DisableUpstream { id: cmd_uuid.to_string(), upstream_address: UpstreamAddress::FQDN(upstream_address.clone()) };
+                    let command = Command::DisableUpstream {
+                        id: cmd_uuid.to_string(),
+                        upstream_address: UpstreamAddress::FQDN(upstream_address.clone()),
+                    };
                     match send_cmd.send(command) {
                         Ok(_) => log::debug!("Command sent"),
                         Err(e) => log::error!("Error sending command {}", e),

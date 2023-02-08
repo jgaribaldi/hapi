@@ -11,16 +11,16 @@ use crate::events::commands::Command;
 use crate::events::events::Event;
 use crate::infrastructure::core_handler::handle_core;
 use crate::infrastructure::probe_handler::handle_probes;
-use crate::infrastructure::settings::HapiSettings;
 use crate::infrastructure::processor::process_request;
+use crate::infrastructure::settings::HapiSettings;
 use crate::infrastructure::stats_handler::handle_stats;
 use crate::interfaces::api::handle_api;
 
 mod errors;
-mod infrastructure;
-mod modules;
-mod interfaces;
 mod events;
+mod infrastructure;
+mod interfaces;
+mod modules;
 mod repositories;
 
 #[tokio::main]
@@ -55,7 +55,7 @@ async fn main() -> Result<(), HapiError> {
     let send_cmd3 = send_cmd.clone();
     let send_evt3 = send_evt.clone();
     tokio::spawn(async move {
-        handle_probes(recv_evt3, send_cmd3,send_evt3).await;
+        handle_probes(recv_evt3, send_cmd3, send_evt3).await;
     });
 
     let send_cmd4 = send_cmd.clone();
@@ -120,4 +120,3 @@ async fn api_graceful_quit_handler() {
 
     log::info!("Shutting down API server. Bye :-)")
 }
-

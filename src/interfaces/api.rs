@@ -1,12 +1,12 @@
-use std::str::FromStr;
-use hyper::{Body, header, Method, Request, Response};
-use tokio::sync::broadcast::{Receiver, Sender};
 use crate::errors::HapiError;
 use crate::events::commands::Command;
 use crate::events::events::Event;
 use crate::infrastructure::core_handler::CoreClient;
 use crate::infrastructure::stats_handler::StatsClient;
 use crate::modules::core::route::Route;
+use hyper::{header, Body, Method, Request, Response};
+use std::str::FromStr;
+use tokio::sync::broadcast::{Receiver, Sender};
 
 pub(crate) async fn handle_api(
     request: Request<Body>,
@@ -27,7 +27,7 @@ pub(crate) async fn handle_api(
             let routes = get_routes(send_cmd, recv_evt).await;
             let content = serde_json::to_string(&routes).unwrap();
             json(content)
-        },
+        }
         (ApiResource::Route, &Method::GET, Some(r_id)) => {
             if let Some(r) = get_route(*r_id, send_cmd, recv_evt).await {
                 let content = serde_json::to_string(&r).unwrap(); // TODO: remove unwrap
@@ -35,9 +35,12 @@ pub(crate) async fn handle_api(
             } else {
                 not_found()
             }
-        },
+        }
         (ApiResource::Route, &Method::POST, None) => {
-            let requested_route: Result<crate::infrastructure::serializable_model::Route, HapiError> = hyper::body::to_bytes(request.into_body())
+            let requested_route: Result<
+                crate::infrastructure::serializable_model::Route,
+                HapiError,
+            > = hyper::body::to_bytes(request.into_body())
                 .await
                 .map_err(|e| HapiError::HyperError(e))
                 .and_then(|bytes| {
@@ -50,37 +53,37 @@ pub(crate) async fn handle_api(
                     log::debug!("Route received {:?}", route);
                     add_route(route, send_cmd, recv_evt).await;
                     created()
-                },
+                }
                 Err(e) => bad_request(e),
             }
-        },
+        }
         (ApiResource::Route, &Method::DELETE, Some(r_id)) => {
             match remove_route(r_id, send_cmd, recv_evt).await {
                 Ok(route) => {
                     let content = serde_json::to_string(&route).unwrap(); // TODO: remove unwrap
                     json(content)
-                },
+                }
                 Err(e) => bad_request(e), // TODO: maybe this isn't a 4xx?
             }
-        },
+        }
         (ApiResource::Upstream, &Method::GET, None) => {
             match get_upstreams(send_cmd, recv_evt).await {
                 Ok(upstreams) => {
                     let content = serde_json::to_string(&upstreams).unwrap(); // TODO: remove unwrap
                     json(content)
-                },
+                }
                 Err(e) => bad_request(e), // TODO: maybe this isn't a 4xx?
             }
-        },
+        }
         (ApiResource::Stats, &Method::GET, None) => {
             match get_stats(send_cmd, recv_evt).await {
                 Ok(stats) => {
                     let content = serde_json::to_string(&stats).unwrap(); // TODO: remove unwrap
                     json(content)
-                },
+                }
                 Err(e) => bad_request(e), // TODO: maybe this isn't a 4xx?
             }
-        },
+        }
         _ => {
             not_found() // TODO: remove
         }
@@ -130,7 +133,10 @@ async fn get_route(
     recv_evt: Receiver<Event>,
 ) -> Option<crate::infrastructure::serializable_model::Route> {
     let mut core_client = CoreClient::build(send_cmd, recv_evt);
-    core_client.get_route_by_id(route_id).await.unwrap() // TODO: remove unwrap
+    core_client
+        .get_route_by_id(route_id)
+        .await
+        .unwrap() // TODO: remove unwrap
         .map(|r| crate::infrastructure::serializable_model::Route::from(r))
 }
 
@@ -142,7 +148,7 @@ async fn add_route(
     let mut core_client = CoreClient::build(send_cmd, recv_evt);
     let r = Route::from(route);
     match core_client.add_route(r).await {
-        Ok(()) => {},
+        Ok(()) => {}
         Err(e) => log::error!("Error adding route: {:?}", e),
     }
 }
@@ -153,7 +159,9 @@ async fn remove_route(
     recv_evt: Receiver<Event>,
 ) -> Result<crate::infrastructure::serializable_model::Route, HapiError> {
     let mut core_client = CoreClient::build(send_cmd, recv_evt);
-    core_client.remove_route(route_id).await
+    core_client
+        .remove_route(route_id)
+        .await
         .map(|r| crate::infrastructure::serializable_model::Route::from(r))
 }
 
@@ -162,14 +170,13 @@ async fn get_upstreams(
     recv_evt: Receiver<Event>,
 ) -> Result<Vec<String>, HapiError> {
     let mut core_client = CoreClient::build(send_cmd, recv_evt);
-    core_client.get_upstreams().await
-        .map(|upstreams| {
-            let mut result = Vec::new();
-            for u in upstreams {
-                result.push(u.to_string())
-            };
-            result
-        })
+    core_client.get_upstreams().await.map(|upstreams| {
+        let mut result = Vec::new();
+        for u in upstreams {
+            result.push(u.to_string())
+        }
+        result
+    })
 }
 
 async fn get_stats(

@@ -4,11 +4,11 @@ use hyper::header::HOST;
 use hyper::{Body, Client, HeaderMap, Request, Response, Uri};
 use tokio::sync::broadcast::{Receiver, Sender};
 
-use crate::HapiError;
 use crate::events::commands::Command;
 use crate::events::events::Event;
 use crate::infrastructure::core_handler::CoreClient;
 use crate::modules::core::upstream::UpstreamAddress;
+use crate::HapiError;
 
 pub(crate) async fn process_request(
     request: Request<Body>,
@@ -21,7 +21,10 @@ pub(crate) async fn process_request(
 
     let mut core_client = CoreClient::build(send_cmd, recv_evt);
     // TODO: remove the following unwrap
-    let maybe_upstream = core_client.search_upstream(client.as_str(), path, method.as_str()).await.unwrap();
+    let maybe_upstream = core_client
+        .search_upstream(client.as_str(), path, method.as_str())
+        .await
+        .unwrap();
     match maybe_upstream {
         Some(upstream_address) => {
             let upstream_uri = Uri::from_str(absolute_url_for(&upstream_address, path).as_str())?;

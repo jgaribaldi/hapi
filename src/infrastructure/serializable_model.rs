@@ -1,8 +1,8 @@
+use crate::modules::core::upstream::{Upstream, UpstreamStrategy};
 use regex::Regex;
 use serde::Deserialize;
 use serde::Serialize;
 use std::str::FromStr;
-use crate::modules::core::upstream::{Upstream, UpstreamStrategy};
 
 const IPV4_REGEX: &str = "^(\\d|[1-9]\\d|1\\d\\d|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d\\d|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d\\d|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d\\d|2[0-4]\\d|25[0-5])(:(0|[1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5]))*$";
 
@@ -114,8 +114,8 @@ mod tests {
     use crate::infrastructure::serializable_model::{
         upstream_str_to_tuple, Route, Strategy, IPV4_REGEX,
     };
-    use regex::Regex;
     use crate::modules::core::upstream::{Upstream, UpstreamStrategy};
+    use regex::Regex;
 
     #[test]
     fn should_convert_route_to_serializable_route() {

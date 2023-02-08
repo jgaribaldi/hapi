@@ -1,8 +1,8 @@
 pub(crate) mod context {
-    use std::collections::{HashMap, HashSet};
-    use regex::Regex;
     use crate::modules::core::route::Route;
     use crate::modules::core::upstream::{Upstream, UpstreamAddress};
+    use regex::Regex;
+    use std::collections::{HashMap, HashSet};
 
     #[derive(Clone, Debug)]
     pub(crate) struct Context {
@@ -22,22 +22,33 @@ pub(crate) mod context {
             }
         }
 
-        pub fn upstream_lookup(&mut self, path: &str, method: &str) -> Result<Option<UpstreamAddress>, CoreError> {
-            let upstream_address = self.find_routing_table_index(path, method)
+        pub fn upstream_lookup(
+            &mut self,
+            path: &str,
+            method: &str,
+        ) -> Result<Option<UpstreamAddress>, CoreError> {
+            let upstream_address = self
+                .find_routing_table_index(path, method)
                 .and_then(|index| self.routes.get_mut(index))
                 .and_then(|route| route.next_available_upstream())
                 .map(|upstream| upstream.address.clone());
             Ok(upstream_address)
         }
 
-        pub fn disable_upstream_for_all_routes(&mut self, upstream: &UpstreamAddress) -> Result<(), CoreError> {
+        pub fn disable_upstream_for_all_routes(
+            &mut self,
+            upstream: &UpstreamAddress,
+        ) -> Result<(), CoreError> {
             for route in self.routes.iter_mut() {
                 route.disable_upstream(upstream)
             }
             Ok(())
         }
 
-        pub fn enable_upstream_for_all_routes(&mut self, upstream: &UpstreamAddress) -> Result<(), CoreError> {
+        pub fn enable_upstream_for_all_routes(
+            &mut self,
+            upstream: &UpstreamAddress,
+        ) -> Result<(), CoreError> {
             for route in self.routes.iter_mut() {
                 route.enable_upstream(upstream)
             }
@@ -84,7 +95,8 @@ pub(crate) mod context {
         }
 
         pub fn get_route_by_id(&self, route_id: &str) -> Result<Option<&Route>, CoreError> {
-            let route = self.route_index
+            let route = self
+                .route_index
                 .get(route_id)
                 .and_then(|index| self.routes.get(*index));
             Ok(route)

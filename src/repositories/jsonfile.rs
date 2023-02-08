@@ -1,8 +1,8 @@
+use crate::errors::HapiError;
+use crate::infrastructure::serializable_model::Route;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
-use crate::errors::HapiError;
-use crate::infrastructure::serializable_model::Route;
 
 use serde::Deserialize;
 use serde::Serialize;
