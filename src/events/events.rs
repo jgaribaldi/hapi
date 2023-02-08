@@ -18,10 +18,6 @@ pub(crate) enum Event {
     RouteWasNotFound { cmd_id: String, route_id: String },
     UpstreamsWereFound { cmd_id: String, upstreams: Vec<UpstreamAddress> },
 
-    // Probe events
-    ProbeWasStarted { cmd_id: String },
-    ProbeWasStopped { cmd_id: String },
-
     // Stats events
     StatWasCounted { cmd_id: String },
     StatsWereFound { cmd_id: String, stats: Vec<(String, String, String, String, u64)> },

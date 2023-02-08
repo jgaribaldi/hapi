@@ -73,10 +73,6 @@
 - [x] RouteWasNotFound
 - [x] UpstreamsWereFound
 
-## 'Probe' Events
-- [] ProbeWasStarted
-- [] ProbeWasStopped
-
 ## 'Stats' Events
 - [x] StatsWereFound
 

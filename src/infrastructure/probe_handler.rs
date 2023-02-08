@@ -28,13 +28,11 @@ pub(crate) async fn handle_probes(
                 for upstream in route.upstreams {
                     probe_controller.add_probe(&upstream.address);
                 }
-                // TODO: send events for added probes
             },
             Event::RouteWasRemoved { cmd_id, route } => {
                 for upstream in route.upstreams {
                     probe_controller.remove_probe(&upstream.address);
                 }
-                // TODO: send events for removed probes
             },
             _ => {},
         }
