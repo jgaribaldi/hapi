@@ -16,8 +16,8 @@ pub(crate) async fn handle_probes(
     send_cmd: Sender<Command>,
     _send_evt: Sender<Event>,
 ) {
-    // TODO: remove unwrap()
-    let settings = HapiSettings::load_from_file("settings.json").unwrap();
+    let settings = HapiSettings::load_from_file("settings.json")
+        .expect("Could not load settings from 'settings.json' file");
     let mut probe_controller = ProbeController::build(send_cmd, settings.probes);
 
     while let Ok(event) = recv_evt.recv().await {

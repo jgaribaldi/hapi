@@ -19,9 +19,10 @@ use crate::modules::core::upstream::UpstreamAddress;
 use crate::repositories::jsonfile::JsonFile;
 
 pub(crate) async fn handle_core(mut recv_cmd: Receiver<Command>, send_evt: Sender<Event>) {
-    // TODO: remove unwrap()
-    let db = JsonFile::build("db.json").unwrap();
-    let mut context = load_json_file_db(db).unwrap();
+    let db = JsonFile::build("db.json")
+        .expect("Could not find 'db.json' file");
+    let mut context = load_json_file_db(db)
+        .expect("Could not create context from 'db.json' file");
 
     while let Ok(command) = recv_cmd.recv().await {
         log::debug!("Received command {:?}", command);
