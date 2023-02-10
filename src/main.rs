@@ -37,7 +37,6 @@ async fn main() -> Result<(), HapiError> {
     let send_evt1 = send_evt.clone();
     let recv_cmd1 = send_cmd.subscribe();
     tokio::spawn(async move {
-        let send_evt1 = send_evt1.clone();
         handle_core(recv_cmd1, send_evt1).await;
     });
 
@@ -46,7 +45,6 @@ async fn main() -> Result<(), HapiError> {
     let recv_cmd2 = send_cmd.subscribe();
     let recv_evt2 = send_evt.subscribe();
     tokio::spawn(async move {
-        let send_evt2 = send_evt2.clone();
         handle_stats(recv_cmd2, send_evt2, recv_evt2).await;
     });
 
