@@ -14,7 +14,6 @@ use uuid::Uuid;
 pub(crate) async fn handle_probes(
     mut recv_evt: Receiver<Event>,
     send_cmd: Sender<Command>,
-    _send_evt: Sender<Event>,
 ) {
     let settings = HapiSettings::load_from_file("settings.json")
         .expect("Could not load settings from 'settings.json' file");
