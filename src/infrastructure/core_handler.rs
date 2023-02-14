@@ -21,7 +21,7 @@ use crate::repositories::jsonfile::JsonFile;
 pub(crate) async fn handle_core(mut recv_cmd: Receiver<Command>, send_evt: Sender<Event>) {
     let db = JsonFile::build("db.json")
         .expect("Could not find 'db.json' file");
-    let mut context = load_json_file_db(db)
+    let mut context = load_json_file_db(db, send_evt.clone())
         .expect("Could not create context from 'db.json' file");
 
     while let Ok(command) = recv_cmd.recv().await {
@@ -356,12 +356,14 @@ impl CoreClient {
     }
 }
 
-fn load_json_file_db(db: JsonFile) -> Result<Context, HapiError> {
+fn load_json_file_db(db: JsonFile, send_evt: Sender<Event>) -> Result<Context, HapiError> {
     let mut context = Context::build_empty();
     if db.routes.is_some() {
         for route in db.routes.unwrap().iter() {
             let r = Route::from(route.clone());
-            context.add_route(r)?;
+            context.add_route(r.clone())?;
+            let event = RouteWasAdded { cmd_id: String::from("init_event"), route: r.clone() };
+            send_evt.send(event)?;
         }
     }
     Ok(context)

@@ -19,7 +19,7 @@ pub(crate) async fn handle_probes(
     let settings = HapiSettings::load_from_file("settings.json")
         .expect("Could not load settings from 'settings.json' file");
     let mut probe_controller = ProbeController::build(send_cmd, settings.probes);
-    probe_controller.initialize_default();
+    // probe_controller.initialize_default();
 
     while let Ok(event) = recv_evt.recv().await {
         match event {

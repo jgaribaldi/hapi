@@ -6,6 +6,7 @@ use log::SetLoggerError;
 use std::fmt::{Display, Formatter};
 use std::net::AddrParseError;
 use tokio::sync::broadcast::error::{RecvError, SendError};
+use crate::events::events::Event;
 
 #[derive(Debug)]
 pub(crate) enum HapiError {
@@ -15,9 +16,10 @@ pub(crate) enum HapiError {
     IoError(std::io::Error),
     SerdeError(serde_json::Error),
     AddressParseError(AddrParseError),
-    MessageSendError(SendError<Command>),
+    CommandSendError(SendError<Command>),
     CoreError(CoreError),
     MessageReceiveError(RecvError),
+    EventSendError(SendError<Event>),
 }
 
 impl Display for HapiError {
@@ -31,11 +33,14 @@ impl Display for HapiError {
             HapiError::AddressParseError(address_parse_error) => {
                 write!(f, "{:?}", address_parse_error)
             }
-            HapiError::MessageSendError(tokio_send_msg_error) => {
+            HapiError::CommandSendError(tokio_send_msg_error) => {
                 write!(f, "{:?}", tokio_send_msg_error)
             }
             HapiError::CoreError(core_error) => write!(f, "{:?}", core_error),
             HapiError::MessageReceiveError(recv_error) => write!(f, "{:?}", recv_error),
+            HapiError::EventSendError(tokio_send_msg_error) => {
+                write!(f, "{:?}", tokio_send_msg_error)
+            },
         }
     }
 }
@@ -80,7 +85,7 @@ impl From<AddrParseError> for HapiError {
 
 impl From<SendError<Command>> for HapiError {
     fn from(tokio_send_msg_error: SendError<Command>) -> Self {
-        HapiError::MessageSendError(tokio_send_msg_error)
+        HapiError::CommandSendError(tokio_send_msg_error)
     }
 }
 
@@ -93,5 +98,11 @@ impl From<CoreError> for HapiError {
 impl From<RecvError> for HapiError {
     fn from(recv_error: RecvError) -> Self {
         HapiError::MessageReceiveError(recv_error)
+    }
+}
+
+impl From<SendError<Event>> for HapiError {
+    fn from(tokio_send_msg_error: SendError<Event>) -> Self {
+        HapiError::EventSendError(tokio_send_msg_error)
     }
 }
