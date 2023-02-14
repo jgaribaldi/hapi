@@ -1,4 +1,3 @@
-use std::borrow::{Borrow, BorrowMut};
 use crate::events::commands::Command;
 use crate::events::events::Event;
 use crate::infrastructure::settings::{HapiSettings, ProbeSettings};
@@ -19,7 +18,6 @@ pub(crate) async fn handle_probes(
     let settings = HapiSettings::load_from_file("settings.json")
         .expect("Could not load settings from 'settings.json' file");
     let mut probe_controller = ProbeController::build(send_cmd, settings.probes);
-    // probe_controller.initialize_default();
 
     while let Ok(event) = recv_evt.recv().await {
         match event {
@@ -60,20 +58,6 @@ impl ProbeController {
             upstream_counter: HashMap::new(),
             send_cmd,
             default_probes: probes_map,
-        }
-    }
-
-    fn initialize_default(&mut self) {
-        let mut default_upstream_addresses = Vec::new();
-        if let Some(probes) = self.default_probes.borrow() {
-            for key in probes.keys() {
-                let address = UpstreamAddress::FQDN(key.clone());
-                default_upstream_addresses.push(address)
-            }
-        }
-
-        for upstream_address in default_upstream_addresses {
-            self.add_probe(&upstream_address);
         }
     }
 
