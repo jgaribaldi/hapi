@@ -37,7 +37,7 @@ pub(crate) async fn handle_core(mut recv_cmd: Receiver<Command>, send_evt: Sende
                     Ok(maybe_upstream) => match maybe_upstream {
                         Some(upstream) => Some(UpstreamWasFound {
                             cmd_id: id.clone(),
-                            upstream_address: upstream,
+                            upstream_address: upstream.address.clone(),
                             client,
                             path,
                             method,
@@ -122,10 +122,13 @@ pub(crate) async fn handle_core(mut recv_cmd: Receiver<Command>, send_evt: Sende
             }
             LookupAllUpstreams { id } => {
                 match context.get_all_upstreams() {
-                    Ok(upstreams) => Some(UpstreamsWereFound {
-                        cmd_id: id,
-                        upstreams,
-                    }),
+                    Ok(upstreams) => {
+                        let found: Vec<UpstreamAddress> = upstreams.iter().map(|u| u.address.clone()).collect();
+                        Some(UpstreamsWereFound {
+                            cmd_id: id,
+                            upstreams: found,
+                        })
+                    },
                     Err(_error) => None, // TODO: map error to proper event
                 }
             }

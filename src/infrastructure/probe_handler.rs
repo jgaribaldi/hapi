@@ -22,12 +22,12 @@ pub(crate) async fn handle_probes(
     while let Ok(event) = recv_evt.recv().await {
         match event {
             Event::RouteWasAdded { route, .. } => {
-                for upstream in route.upstreams {
+                for upstream in route.strategy.get_upstreams() {
                     probe_controller.add_probe(&upstream.address);
                 }
             }
             Event::RouteWasRemoved { route, .. } => {
-                for upstream in route.upstreams {
+                for upstream in route.strategy.get_upstreams() {
                     probe_controller.remove_probe(&upstream.address);
                 }
             }

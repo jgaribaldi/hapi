@@ -19,7 +19,8 @@ pub struct Route {
 impl From<crate::modules::core::route::Route> for Route {
     fn from(route: crate::modules::core::route::Route) -> Self {
         let upstreams: Vec<String> = route
-            .upstreams
+            .strategy
+            .get_upstreams()
             .iter()
             .map(|u| u.address.to_string())
             .collect();
@@ -56,16 +57,14 @@ impl From<Route> for crate::modules::core::route::Route {
                 serializable_route.name.clone(),
                 serializable_route.methods.clone(),
                 serializable_route.paths.clone(),
-                upstreams,
-                UpstreamStrategy::AlwaysFirst,
+                UpstreamStrategy::AlwaysFirst { upstreams },
             ),
             Strategy::RoundRobin => crate::modules::core::route::Route::build(
                 serializable_route.id.clone(),
                 serializable_route.name.clone(),
                 serializable_route.methods.clone(),
                 serializable_route.paths.clone(),
-                upstreams,
-                UpstreamStrategy::RoundRobin { index: 0 },
+                UpstreamStrategy::RoundRobin { upstreams, next_index: 0 },
             ),
         }
     }
@@ -103,8 +102,8 @@ pub enum Strategy {
 impl From<UpstreamStrategy> for Strategy {
     fn from(upstream_strategy: UpstreamStrategy) -> Self {
         match upstream_strategy {
-            UpstreamStrategy::AlwaysFirst => Strategy::AlwaysFirst,
-            UpstreamStrategy::RoundRobin { index: _ } => Strategy::RoundRobin,
+            UpstreamStrategy::AlwaysFirst { .. } => Strategy::AlwaysFirst,
+            UpstreamStrategy::RoundRobin { .. } => Strategy::RoundRobin,
         }
     }
 }
@@ -114,8 +113,9 @@ mod tests {
     use crate::infrastructure::serializable_model::{
         upstream_str_to_tuple, Route, Strategy, IPV4_REGEX,
     };
-    use crate::modules::core::upstream::{Upstream, UpstreamStrategy};
+    use crate::modules::core::upstream::Upstream;
     use regex::Regex;
+    use crate::modules::core::upstream::UpstreamStrategy::AlwaysFirst;
 
     #[test]
     fn should_convert_route_to_serializable_route() {
@@ -180,30 +180,32 @@ mod tests {
     }
 
     fn sample_route() -> crate::modules::core::route::Route {
+        let upstreams = vec![
+            Upstream::build_from_fqdn("upstream1"),
+            Upstream::build_from_fqdn("upstream2"),
+        ];
+        let strategy = AlwaysFirst { upstreams };
         crate::modules::core::route::Route::build(
             String::from("id1"),
             String::from("route1"),
             vec![String::from("GET")],
             vec![String::from("uri1"), String::from("uri2")],
-            vec![
-                Upstream::build_from_fqdn("upstream1"),
-                Upstream::build_from_fqdn("upstream2"),
-            ],
-            UpstreamStrategy::AlwaysFirst,
+            strategy,
         )
     }
 
     fn sample_route_ipv4() -> crate::modules::core::route::Route {
+        let upstreams = vec![
+            Upstream::build_from_ipv4((192, 168, 0, 100, 80)),
+            Upstream::build_from_ipv4((192, 168, 0, 101, 8080)),
+        ];
+        let strategy = AlwaysFirst { upstreams };
         crate::modules::core::route::Route::build(
             String::from("id1"),
             String::from("route1"),
             vec![String::from("GET")],
             vec![String::from("uri1"), String::from("uri2")],
-            vec![
-                Upstream::build_from_ipv4((192, 168, 0, 100, 80)),
-                Upstream::build_from_ipv4((192, 168, 0, 101, 8080)),
-            ],
-            UpstreamStrategy::AlwaysFirst,
+            strategy,
         )
     }
 
