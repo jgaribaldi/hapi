@@ -28,7 +28,7 @@ pub(crate) mod context {
             let upstream = self
                 .find_routing_table_index(path, method)
                 .and_then(move |index| self.routes.get_mut(index))
-                .and_then(|route| route.next_available_upstream());
+                .and_then(|route| route.strategy.next());
             Ok(upstream)
         }
 
@@ -37,7 +37,7 @@ pub(crate) mod context {
             upstream: &UpstreamAddress,
         ) -> Result<(), CoreError> {
             for route in self.routes.iter_mut() {
-                route.disable_upstream(upstream)
+                route.strategy.disable_upstream(upstream)
             }
             Ok(())
         }
@@ -47,7 +47,7 @@ pub(crate) mod context {
             upstream: &UpstreamAddress,
         ) -> Result<(), CoreError> {
             for route in self.routes.iter_mut() {
-                route.enable_upstream(upstream)
+                route.strategy.enable_upstream(upstream)
             }
             Ok(())
         }
@@ -559,7 +559,7 @@ pub(crate) mod context {
 }
 
 pub(crate) mod route {
-    use crate::modules::core::upstream::{Upstream, UpstreamAddress, UpstreamStrategy};
+    use crate::modules::core::upstream::UpstreamStrategy;
 
     #[derive(Clone, Debug, PartialEq)]
     pub struct Route {
@@ -585,18 +585,6 @@ pub(crate) mod route {
                 paths,
                 strategy,
             }
-        }
-
-        pub fn enable_upstream(&mut self, upstream: &UpstreamAddress) {
-            self.strategy.enable_upstream(upstream);
-        }
-
-        pub fn disable_upstream(&mut self, upstream: &UpstreamAddress) {
-            self.strategy.disable_upstream(upstream);
-        }
-
-        pub fn next_available_upstream(&mut self) -> Option<&Upstream> {
-            self.strategy.next()
         }
     }
 }
