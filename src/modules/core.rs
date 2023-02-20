@@ -635,14 +635,6 @@ pub(crate) mod upstream {
                 enabled: true,
             }
         }
-
-        /*pub fn enable(&mut self) {
-            self.enabled = true;
-        }
-
-        pub fn disable(&mut self) {
-            self.enabled = false;
-        }*/
     }
 
     #[derive(Clone, Debug, PartialEq)]
