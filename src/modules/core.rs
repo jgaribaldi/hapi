@@ -20,18 +20,24 @@ pub(crate) mod context {
             }
         }
 
+        /// Given a path and a method, attempts to get a proper route and returns an upstream that
+        /// is capable of handling the request.
+        /// First, try to get the route by matching exactly by (path, method). If that fails, try
+        /// to match by wrapping the given path and method using regular expressions
         pub fn upstream_lookup(
             &mut self,
             path: &str,
-            method: &str,
+            method: &str
         ) -> Result<Option<&Upstream>, CoreError> {
-            let upstream = self
-                .find_routing_table_index(path, method)
-                .and_then(move |index| self.routes.get_mut(index))
+            let result = self.find_route_index(path, method)?
+                .and_then(move |route_index| self.routes.get_mut(route_index))
                 .and_then(|route| route.strategy.next());
-            Ok(upstream)
+
+            Ok(result)
         }
 
+        /// Disables the given upstream from all the routes that contain it, so new requests don't
+        /// get routed to that upstream
         pub fn disable_upstream_for_all_routes(
             &mut self,
             upstream: &UpstreamAddress,
@@ -42,6 +48,8 @@ pub(crate) mod context {
             Ok(())
         }
 
+        /// Enables the given upstream in all the routes that contain it, so new requests can be
+        /// routed to that upstream
         pub fn enable_upstream_for_all_routes(
             &mut self,
             upstream: &UpstreamAddress,
@@ -105,29 +113,38 @@ pub(crate) mod context {
             Ok(route)
         }
 
-        fn find_routing_table_index(&self, path: &str, method: &str) -> Option<usize> {
-            // attempt exact match by (path, method) key
-            let exact_key = (path.to_string(), method.to_string());
-
-            self.routing_table
-                .get(&exact_key)
+        fn find_route_index(
+            &self,
+            path: &str,
+            method: &str
+        ) -> Result<Option<usize>, CoreError> {
+            let key = (path.to_string(), method.to_string());
+            let route_index = self.routing_table
+                .get(&key)
                 .map(|value| *value)
-                .or_else(|| {
-                    let mut result = None;
-                    // attempt matching by regexp
-                    for (key, value) in self.routing_table.iter() {
-                        let path_regexp =
-                            Regex::new(wrap_string_in_regexp(key.0.as_str()).as_str()).unwrap();
-                        let method_regexp =
-                            Regex::new(wrap_string_in_regexp(key.1.as_str()).as_str()).unwrap();
+                .or_else(|| { self.match_route_index(path, method).ok()? });
 
-                        if path_regexp.is_match(path) && method_regexp.is_match(method) {
-                            result = Some(value.clone());
-                            break;
-                        }
-                    }
-                    result
-                })
+            Ok(route_index)
+        }
+
+        fn match_route_index(
+            &self,
+            path: &str,
+            method: &str
+        ) -> Result<Option<usize>, regex::Error> {
+            let mut result = Ok(None);
+
+            for (key, value) in self.routing_table.iter() {
+                let k = key.clone();
+                let path_regexp = Regex::new(regexp_for(k.0).as_str())?;
+                let method_regexp = Regex::new(regexp_for(k.1).as_str())?;
+
+                if path_regexp.is_match(path) && method_regexp.is_match(method) {
+                    result = Ok(Some(*value));
+                    break;
+                }
+            }
+            result
         }
 
         fn do_add_route(&mut self, route: Route) {
@@ -171,12 +188,13 @@ pub(crate) mod context {
     pub(crate) enum CoreError {
         RouteAlreadyExists,
         RouteNotExists,
+        CannotCreateRegexp,
     }
 
-    fn wrap_string_in_regexp(string: &str) -> String {
+    fn regexp_for(string: String) -> String {
         let mut result = String::new();
         result.push_str("^");
-        result.push_str(string);
+        result.push_str(string.as_str());
         result.push_str("$");
         result
     }
