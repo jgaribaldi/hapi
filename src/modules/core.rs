@@ -188,7 +188,6 @@ pub(crate) mod context {
     pub(crate) enum CoreError {
         RouteAlreadyExists,
         RouteNotExists,
-        CannotCreateRegexp,
     }
 
     fn regexp_for(string: String) -> String {
