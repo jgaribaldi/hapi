@@ -11,10 +11,7 @@ use tokio::task::JoinHandle;
 use tokio::time::sleep;
 use uuid::Uuid;
 
-pub(crate) async fn handle_probes(
-    mut recv_evt: Receiver<Event>,
-    send_cmd: Sender<Command>,
-) {
+pub(crate) async fn handle_probes(mut recv_evt: Receiver<Event>, send_cmd: Sender<Command>) {
     let settings = HapiSettings::load_from_file("settings.json")
         .expect("Could not load settings from 'settings.json' file");
     let mut probe_controller = ProbeController::build(send_cmd, settings.probes);

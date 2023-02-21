@@ -579,7 +579,7 @@ pub(crate) mod route {
     use crate::modules::core::upstream::UpstreamStrategy;
 
     #[derive(Clone, Debug, PartialEq)]
-    pub struct Route {
+    pub(crate) struct Route {
         pub id: String,
         pub name: String,
         pub methods: Vec<String>,
@@ -595,13 +595,7 @@ pub(crate) mod route {
             paths: Vec<String>,
             strategy: UpstreamStrategy,
         ) -> Self {
-            Route {
-                id,
-                name,
-                methods,
-                paths,
-                strategy,
-            }
+            Route { id, name, methods, paths, strategy }
         }
     }
 }
@@ -610,7 +604,7 @@ pub(crate) mod upstream {
     use std::fmt::{Display, Formatter};
 
     #[derive(Clone, Debug, Eq, PartialEq, Hash)]
-    pub enum UpstreamAddress {
+    pub(crate) enum UpstreamAddress {
         FQDN(String),
         IPv4((u8, u8, u8, u8, u16)),
     }
@@ -633,7 +627,7 @@ pub(crate) mod upstream {
     }
 
     #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-    pub struct Upstream {
+    pub(crate) struct Upstream {
         pub address: UpstreamAddress,
         pub enabled: bool,
     }
@@ -655,7 +649,7 @@ pub(crate) mod upstream {
     }
 
     #[derive(Clone, Debug, PartialEq)]
-    pub enum UpstreamStrategy {
+    pub(crate) enum UpstreamStrategy {
         AlwaysFirst {
             upstreams: Vec<Upstream>,
         },

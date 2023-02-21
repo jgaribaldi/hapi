@@ -7,7 +7,7 @@ use std::str::FromStr;
 const IPV4_REGEX: &str = "^(\\d|[1-9]\\d|1\\d\\d|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d\\d|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d\\d|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d\\d|2[0-4]\\d|25[0-5])(:(0|[1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5]))*$";
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-pub struct Route {
+pub(crate) struct Route {
     pub id: String,
     pub name: String,
     pub methods: Vec<String>,
@@ -94,7 +94,7 @@ fn upstream_str_to_tuple(regex: &Regex, upstream: &str) -> (u8, u8, u8, u8, u16)
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-pub enum Strategy {
+pub(crate) enum Strategy {
     AlwaysFirst,
     RoundRobin,
 }

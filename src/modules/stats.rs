@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-pub struct Stats {
+pub(crate) struct Stats {
     // (client, method, path, upstream) => count
     counter: HashMap<(String, String, String, String), u64>,
 }
